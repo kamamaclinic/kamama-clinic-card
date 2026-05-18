@@ -93,7 +93,7 @@ function Admin(){
   if(!session) return <Login onDone={check}/>
   async function signOut(){ await supabase.auth.signOut(); setSession(null) }
   async function updateClient(patch){ await supabase.from('clients').update(patch).eq('id',selected.id); await load() }
-  async function createClient(){ const {data}=await supabase.from('clients').insert(insert({name:'מטופל חדש', used_minutes:0}).select().single(); await load(); if(data?.id) setSelectedId(data.id) }
+  async function createClient(){ const {data}=await supabase.from('clients').insert({name:'מטופל חדש', used_minutes:0}).select().single(); await load(); if(data?.id) setSelectedId(data.id) }
   async function deleteClient(){ if(!selected) return; await supabase.from('clients').delete().eq('id',selected.id); setSelectedId(null); await load() }
   async function addTx(amount){
     if(!selected) return
