@@ -172,7 +172,15 @@ const displayedClients = showArchive ? archivedClients : clients;
     )}
   </div>
 </div><div className="search"><Search size={16}/><input placeholder="חיפוש" value={query} onChange={e=>setQuery(e.target.value)} /></div>{displayedClients.filter(c=>`${c.name||''} ${c.phone||''}`.includes(query)).map(c=><button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)}><b>{c.name}</b><small>נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small></button>)}</div></Card>
-      {selected ? <Card><div className="content"><div className="rowBetween"><div><h2>{selected.name}</h2><p>יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p></div><div className="actions"><Button onClick={copyLink} variant="outline"><Copy size={16}/> קישור</Button><Button onClick={deleteClient} variant="danger"><Trash2 size={16}/> מחק</Button></div></div>
+      {selected ? <Card><div className="content"><div className="rowBetween"><div><h2>{selected.name}</h2><p>יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p></div><div className="actions"><Button onClick={copyLink} variant="outline"><Copy size={16}/> קישור</Button>{showArchive ? (
+  <Button onClick={()=>restoreClient(selected.id)} variant="green">
+    שחזר
+  </Button>
+) : (
+  <Button onClick={deleteClient} variant="danger">
+    <Trash2 size={16}/> מחק
+  </Button>
+)}</div></div>
       <div className="fields"><label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label><label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label><label>סה״כ דקות<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label><label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label></div>
       <label>הערה<textarea value={selected.note||''} onChange={e=>updateClient({note:e.target.value})}/></label>
       <div className="charge"><h3>טעינה / גריעת זמן</h3><div className="chargeGrid"><input type="number" value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/><input value={desc} onChange={e=>setDesc(e.target.value)}/><Button onClick={()=>addTx(-Number(minutes))} variant="danger"><Minus size={16}/> גרע</Button><Button onClick={()=>addTx(Number(minutes))} variant="green"><Plus size={16}/> טען</Button></div></div>
