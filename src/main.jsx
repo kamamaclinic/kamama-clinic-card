@@ -136,6 +136,16 @@ async function load(){
 
   await load();
 }
+  async function restoreClient(id){
+  await supabase
+    .from('clients')
+    .update({ archived_at: null })
+    .eq('id', id);
+
+  await load();
+}
+
+const displayedClients = showArchive ? archivedClients : clients;
   async function addTx(amount){
     if(!selected) return
     const newUsed = amount < 0 ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount)) : Math.max(0, selected.used_minutes - amount)
