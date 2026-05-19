@@ -87,7 +87,18 @@ function Admin(){
   const selected=useMemo(()=>clients.find(c=>c.id===selectedId)||clients[0],[clients,selectedId])
   const filtered=clients.filter(c=>`${c.name} ${c.phone||''}`.includes(query))
   async function check(){ const {data}=await supabase.auth.getSession(); setSession(data.session); setLoading(false); if(data.session) load() }
-  async function load(){ const {data,error}=await supabase.from('clients').select('*').order('created_at',{ascending:false}); if(!error){setClients(data||[]); if(data?.[0] && !selectedId) setSelectedId(data[0].id)} }
+  async function load(){ 
+  const {data,error}=await supabase
+    .from('clients')
+    .select('*')
+    .is('archived_at', null)
+    .order('created_at',{ascending:false}); 
+
+  if(!error){
+    setClients(data||[]); 
+    if(data?.[0] && !selectedId) setSelectedId(data[0].id)
+  } 
+}
   useEffect(()=>{check()},[])
   if(loading) return <Shell><div className="center">טוען...</div></Shell>
   if(!session) return <Login onDone={check}/>
