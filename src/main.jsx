@@ -148,6 +148,21 @@ async function load(){
   await load();
 }
 
+  async function permanentlyDeleteClient(id){
+  const ok = confirm('מחיקה סופית! הכרטיסייה תימחק לצמיתות ולא ניתן יהיה לשחזר אותה. האם אתה בטוח?');
+
+  if(!ok) return;
+
+  await supabase
+    .from('clients')
+    .delete()
+    .eq('id', id);
+
+  setSelectedId(null);
+
+  await load();
+}
+
 const displayedClients = showArchive ? archivedClients : clients;
   async function addTx(amount){
     if(!selected) return
