@@ -94,7 +94,22 @@ function Admin(){
   async function signOut(){ await supabase.auth.signOut(); setSession(null) }
   async function updateClient(patch){ await supabase.from('clients').update(patch).eq('id',selected.id); await load() }
   async function createClient(){ const {data}=await supabase.from('clients').insert({name:'מטופל חדש', used_minutes:0}).select().single(); await load(); if(data?.id) setSelectedId(data.id) }
-  async function deleteClient(){ if(!selected) return; await supabase.from('clients').delete().eq('id',selected.id); setSelectedId(null); await load() }
+  async function deleteClient(){
+  if(!selected) return;
+
+  const ok = confirm('האם אתה בטוח שברצונך להעביר את הכרטיסייה לארכיון?');
+
+  if(!ok) return;
+
+  await supabase
+    .from('clients')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', selected.id);
+
+  setSelectedId(null);
+
+  await load();
+}
   async function addTx(amount){
     if(!selected) return
     const newUsed = amount < 0 ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount)) : Math.max(0, selected.used_minutes - amount)
