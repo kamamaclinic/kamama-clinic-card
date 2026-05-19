@@ -83,7 +83,15 @@ function Login({onDone}){
 }
 
 function Admin(){
-  const [session,setSession]=useState(null); const [clients,setClients]=useState([]); const [selectedId,setSelectedId]=useState(null); const [query,setQuery]=useState(''); const [minutes,setMinutes]=useState(60); const [desc,setDesc]=useState('טיפול'); const [loading,setLoading]=useState(true)
+const [session,setSession]=useState(null);
+const [clients,setClients]=useState([]);
+const [archivedClients,setArchivedClients]=useState([]);
+const [showArchive,setShowArchive]=useState(false);
+const [selectedId,setSelectedId]=useState(null);
+const [query,setQuery]=useState('');
+const [minutes,setMinutes]=useState(60);
+const [desc,setDesc]=useState('טיפול');
+const [loading,setLoading]=useState(true);
   const selected=useMemo(()=>clients.find(c=>c.id===selectedId)||clients[0],[clients,selectedId])
   const filtered=clients.filter(c=>`${c.name} ${c.phone||''}`.includes(query))
   async function check(){ const {data}=await supabase.auth.getSession(); setSession(data.session); setLoading(false); if(data.session) load() }
