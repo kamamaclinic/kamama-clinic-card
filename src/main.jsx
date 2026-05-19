@@ -95,16 +95,23 @@ const [loading,setLoading]=useState(true);
   const selected=useMemo(()=>clients.find(c=>c.id===selectedId)||clients[0],[clients,selectedId])
   const filtered=clients.filter(c=>`${c.name} ${c.phone||''}`.includes(query))
   async function check(){ const {data}=await supabase.auth.getSession(); setSession(data.session); setLoading(false); if(data.session) load() }
-  async function load(){ 
-  const {data,error}=await supabase
+async function load(){ 
+  const {data: activeData, error: activeError}=await supabase
     .from('clients')
     .select('*')
     .is('archived_at', null)
     .order('created_at',{ascending:false}); 
 
-  if(!error){
-    setClients(data||[]); 
-    if(data?.[0] && !selectedId) setSelectedId(data[0].id)
+  const {data: archiveData}=await supabase
+    .from('clients')
+    .select('*')
+    .not('archived_at', 'is', null)
+    .order('archived_at',{ascending:false}); 
+
+  if(!activeError){
+    setClients(activeData||[]);
+    setArchivedClients(archiveData||[]);
+    if(activeData?.[0] && !selectedId) setSelectedId(activeData[0].id);
   } 
 }
   useEffect(()=>{check()},[])
