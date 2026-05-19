@@ -236,7 +236,7 @@ const displayedClients = showArchive ? archivedClients : clients;
   <Button onClick={deleteClient} variant="danger">
     <Trash2 size={16}/> מחק
   </Button>
-)}</div></div>
+</div></div>
       <div className="fields"><label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label><label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label><label>סה״כ דקות<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label><label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label></div>
       <label>הערה<textarea value={selected.note||''} onChange={e=>updateClient({note:e.target.value})}/></label>
       <div className="charge"><h3>טעינה / גריעת זמן</h3><div className="chargeGrid"><input type="number" value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/><input value={desc} onChange={e=>setDesc(e.target.value)}/><Button onClick={()=>addTx(-Number(minutes))} variant="danger"><Minus size={16}/> גרע</Button><Button onClick={()=>addTx(Number(minutes))} variant="green"><Plus size={16}/> טען</Button></div></div>
