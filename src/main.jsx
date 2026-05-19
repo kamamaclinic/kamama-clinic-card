@@ -92,7 +92,10 @@ const [query,setQuery]=useState('');
 const [minutes,setMinutes]=useState(60);
 const [desc,setDesc]=useState('טיפול');
 const [loading,setLoading]=useState(true);
-  const selected=useMemo(()=>clients.find(c=>c.id===selectedId)||clients[0],[clients,selectedId])
+const selected=useMemo(
+  ()=>[...clients, ...archivedClients].find(c=>c.id===selectedId)||clients[0],
+  [clients, archivedClients, selectedId]
+)
   const filtered=clients.filter(c=>`${c.name} ${c.phone||''}`.includes(query))
   async function check(){ const {data}=await supabase.auth.getSession(); setSession(data.session); setLoading(false); if(data.session) load() }
 async function load(){ 
