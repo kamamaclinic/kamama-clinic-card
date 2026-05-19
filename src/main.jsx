@@ -41,7 +41,7 @@ function ClientCard({card, history=[]}){
         </div>
         <div className="progressText"><span>ניצול הכרטיסייה</span><span>{percent}% נותר</span></div>
         <div className="progress"><div style={{width:`${Math.max(0,Math.min(100,percent))}%`}} /></div>
-        <div className="infoBox"><b>פרטים</b><p>נרכש בתאריך: {card.purchased_at || '—'}</p><p>הערה: {card.note || '—'}</p></div>
+        <div className="infoBox"><b>פרטים</b><p>נרכש לראשונה בתאריך: {card.purchased_at || '—'}</p><p>הערה: {card.note || '—'}</p></div>
         <h2>היסטוריית פעולות</h2>
         <div className="history">
           {history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=><div className="histRow" key={x.id}><div><b>{x.description || 'פעולה'}</b><small>{new Date(x.created_at).toLocaleDateString('he-IL')}</small></div><b className={x.minutes < 0 ? 'red':'green'}>{x.minutes > 0 ? '+' : ''}{x.minutes} דק׳</b></div>)}
