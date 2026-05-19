@@ -191,9 +191,16 @@ const displayedClients = showArchive ? archivedClients : clients;
   </div>
 </div><div className="search"><Search size={16}/><input placeholder="חיפוש" value={query} onChange={e=>setQuery(e.target.value)} /></div>{displayedClients.filter(c=>`${c.name||''} ${c.phone||''}`.includes(query)).map(c=><button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)}><b>{c.name}</b><small>נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small></button>)}</div></Card>
       {selected ? <Card><div className="content"><div className="rowBetween"><div><h2>{selected.name}</h2><p>יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p></div><div className="actions"><Button onClick={copyLink} variant="outline"><Copy size={16}/> קישור</Button>{showArchive ? (
-  <Button onClick={()=>restoreClient(selected.id)} variant="green">
-    שחזר
-  </Button>
+{showArchive ? (
+  <>
+    <Button onClick={()=>restoreClient(selected.id)} variant="green">
+      שחזר
+    </Button>
+
+    <Button onClick={()=>permanentlyDeleteClient(selected.id)} variant="danger">
+      <Trash2 size={16}/> מחק סופית
+    </Button>
+  </>
 ) : (
   <Button onClick={deleteClient} variant="danger">
     <Trash2 size={16}/> מחק
