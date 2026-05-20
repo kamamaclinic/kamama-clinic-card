@@ -35,6 +35,7 @@ function ClientCard({card, history=[]}){
       </div>
       <div className="content">
         <div className="statsGrid">
+          <Stat icon={ShieldCheck} label="מספר כרטיסייה" value={card.card_number ? `#${card.card_number}` : '—'} />
           <Stat icon={Clock} label="יתרה" value={minutesToText(remaining)} />
           <Stat icon={User} label="סה״כ בכרטיסייה" value={minutesToText(card.total_minutes)} />
           <Stat icon={ShieldCheck} label="בתוקף עד" value={card.expires_at || 'לא הוגדר'} />
@@ -225,13 +226,13 @@ function Admin(){
 
           <div className="search">
             <Search size={16}/>
-            <input placeholder="חיפוש" value={query} onChange={e=>setQuery(e.target.value)} />
+            <input placeholder="חיפוש לפי שם / טלפון / מספר כרטיסייה" value={query} onChange={e=>setQuery(e.target.value)} />
           </div>
 
-          {displayedClients.filter(c=>`${c.name||''} ${c.phone||''}`.includes(query)).map(c=>
+          {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>
             <button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)}>
               <b>{c.name}</b>
-              <small>נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small>
+              <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small>
             </button>
           )}
         </div>
@@ -242,7 +243,7 @@ function Admin(){
           <div className="rowBetween">
             <div>
               <h2>{selected.name}</h2>
-              <p>יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p>
+              <p>כרטיסייה #{selected.card_number || '—'} · יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p>
             </div>
 
             <div className="actions">
@@ -271,6 +272,7 @@ function Admin(){
           <div className="fields">
             <label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label>
             <label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label>
+            <label>מספר כרטיסייה<input type="number" value={selected.card_number||''} onChange={e=>updateClient({card_number:Number(e.target.value)})}/></label>
             <label>סה״כ דקות<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
             <label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label>
           </div>
