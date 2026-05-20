@@ -212,7 +212,13 @@ function Admin(){
             <h2>{showArchive ? 'ארכיון' : 'מטופלים'}</h2>
 
             <div className="actions">
-              <Button onClick={()=>setShowArchive(!showArchive)} variant="outline">
+<Button onClick={()=>{
+  const nextShowArchive = !showArchive;
+  setShowArchive(nextShowArchive);
+
+  const nextList = nextShowArchive ? archivedClients : clients;
+  setSelectedId(nextList?.[0]?.id || null);
+}} variant="outline">
                 {showArchive ? 'חזרה לפעילים' : 'ארכיון'}
               </Button>
 
