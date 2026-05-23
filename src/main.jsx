@@ -45,11 +45,11 @@ function Button({children,onClick,type='button',variant='',disabled=false}){ ret
 function Stat({icon:Icon,label,value}){ return <div className="stat"><div className="statLabel"><Icon size={16}/>{label}</div><div className="statValue">{value}</div></div> }
 
 function ClientCard({card, history=[]}){
-  const remaining = Math.max(0, card.total_minutes - card.used_minutes)
-  const percent = Math.round((remaining / CARD_SIZE) * 100)
-  const progressWidth = Math.max(0, Math.min(100, percent))
   const expired = isExpired(card.expires_at)
   const expiringSoon = isExpiringSoon(card.expires_at)
+  const remaining = expired ? 0 : Math.max(0, card.total_minutes - card.used_minutes)
+  const percent = Math.round((remaining / CARD_SIZE) * 100)
+  const progressWidth = Math.max(0, Math.min(100, percent))
 
   return <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="clientWrap">
     <Card>
@@ -70,7 +70,7 @@ function ClientCard({card, history=[]}){
 
         <div className="statsGrid">
           <Stat icon={ShieldCheck} label="מספר כרטיסייה" value={card.card_number ? `#${card.card_number}` : '—'} />
-          <Stat icon={Clock} label="יתרה" value={minutesToText(remaining)} />
+          <Stat icon={Clock} label="יתרה זמינה" value={minutesToText(remaining)} />
           <Stat icon={ShieldCheck} label="בתוקף עד" value={card.expires_at || 'לא הוגדר'} />
         </div>
 
@@ -251,23 +251,36 @@ function Admin(){
   async function quickCharge300(){
     if(!selected) return;
 
-    const ok = confirm('להוסיף כרטיסייה חדשה של 300 דקות ולעדכן תוקף לשנה מהיום?');
-    if(!ok) return;
+    const expired = isExpired(selected.expires_at);
+    const currentRemaining = Math.max(0, selected.total_minutes - selected.used_minutes);
+    const transferredRemaining = expired ? 0 : currentRemaining;
+    const expiredUnusedTotal = (selected.expired_unused_minutes || 0) + (expired ? currentRemaining : 0);
+    const newTotal = transferredRemaining + CARD_SIZE;
 
-    const newTotal = (selected.total_minutes || 0) + CARD_SIZE;
+    const ok = confirm(
+      expired
+        ? `הכרטיסייה פגה תוקף. ${minutesToText(currentRemaining)} שלא נוצלו יתועדו פנימית, והכרטיסייה החדשה תתחיל עם 300 דקות. להמשיך?`
+        : `לחדש כרטיסייה: היתרה הקיימת (${minutesToText(transferredRemaining)}) תתווסף ל-300 דקות חדשות. להמשיך?`
+    );
+    if(!ok) return;
 
     await supabase
       .from('clients')
       .update({
         total_minutes: newTotal,
-        expires_at: oneYearFromToday()
+        used_minutes: 0,
+        expires_at: oneYearFromToday(),
+        purchased_at: new Date().toISOString().slice(0,10),
+        expired_unused_minutes: expiredUnusedTotal
       })
       .eq('id', selected.id);
 
     await supabase.from('transactions').insert({
       client_id:selected.id,
       minutes:CARD_SIZE,
-      description:'טעינת כרטיסייה 300 דקות'
+      description: expired
+        ? `חידוש כרטיסייה חדשה; ${currentRemaining} דקות פגו ותועדו`
+        : `חידוש כרטיסייה חדשה עם העברת יתרה של ${transferredRemaining} דקות`
     });
 
     await load();
@@ -321,6 +334,8 @@ function Admin(){
           {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>{
             const expired = isExpired(c.expires_at);
             const expiringSoon = isExpiringSoon(c.expires_at);
+            const remaining = expired ? 0 : Math.max(0, c.total_minutes-c.used_minutes);
+            const ended = !expired && remaining <= 0;
 
             return (
               <button
@@ -328,13 +343,14 @@ function Admin(){
                 key={c.id}
                 onClick={()=>setSelectedId(c.id)}
                 style={{
-                  border: expired ? '2px solid #ff4d4f' : expiringSoon ? '2px solid #ffb84d' : undefined
+                  border: expired ? '2px solid #ff4d4f' : ended ? '2px solid #777' : expiringSoon ? '2px solid #ffb84d' : undefined
                 }}
               >
                 <b>{c.name}</b>
-                <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small>
+                <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(remaining)}</small>
                 {expired && <div style={{color:'#ff4d4f',fontSize:'12px',marginTop:'4px'}}>פג תוקף</div>}
-                {!expired && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
+                {ended && <div style={{color:'#777',fontSize:'12px',marginTop:'4px'}}>הכרטיסייה הסתיימה</div>}
+                {!expired && !ended && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
               </button>
             )
           })}
@@ -346,9 +362,11 @@ function Admin(){
           <div className="rowBetween">
             <div>
               <h2>{selected.name}</h2>
-              <p>כרטיסייה #{selected.card_number || '—'} · יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p>
+              <p>כרטיסייה #{selected.card_number || '—'} · יתרה זמינה: {minutesToText(isExpired(selected.expires_at) ? 0 : selected.total_minutes-selected.used_minutes)}</p>
               {isExpired(selected.expires_at) && <p style={{color:'#ff4d4f',fontWeight:'bold'}}>פג תוקף</p>}
-              {!isExpired(selected.expires_at) && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
+              {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)<=0 && <p style={{color:'#777',fontWeight:'bold'}}>הכרטיסייה הסתיימה</p>}
+              {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)>0 && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
+              {(selected.expired_unused_minutes || 0) > 0 && <p style={{color:'#888'}}>דקות שפגו ותועדו: {minutesToText(selected.expired_unused_minutes)}</p>}
             </div>
 
             <div className="actions">
@@ -376,6 +394,7 @@ function Admin(){
             <label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label>
             <label>מספר כרטיסייה<input type="number" value={selected.card_number||''} onChange={e=>updateClient({card_number:Number(e.target.value)})}/></label>
             <label>סה״כ דקות שנרכשו<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
+            <label>דקות שפגו ותועדו<input type="number" value={selected.expired_unused_minutes||0} onChange={e=>updateClient({expired_unused_minutes:Number(e.target.value)})}/></label>
             <label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label>
           </div>
 
@@ -386,7 +405,7 @@ function Admin(){
               <h3>טעינה / גריעת זמן</h3>
 
               <Button onClick={quickCharge300} variant="green">
-                <Plus size={16}/> טעינת כרטיסייה 300 דקות
+                <Plus size={16}/> חידוש כרטיסייה 300 דקות
               </Button>
 
               <div className="chargeGrid">
