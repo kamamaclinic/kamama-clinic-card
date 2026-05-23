@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { supabase } from './supabaseClient'
-import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2 } from 'lucide-react'
+import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2, Gift, MessageCircle, Printer, CalendarClock, Phone, Globe, MapPin, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './styles.css'
 
@@ -34,6 +34,44 @@ function oneYearFromToday(){
   const d = new Date();
   d.setFullYear(d.getFullYear() + 1);
   return d.toISOString().slice(0,10);
+}
+
+function addOneYear(date){
+  const d = new Date(date || new Date());
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0,10);
+}
+
+function generateGiftCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'GIFT-';
+  for(let i=0; i<6; i++){
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+function giftStatus(gift){
+  if(gift.redeemed) return { label:'נוצל', color:'#777', border:'#777' };
+  if(isExpired(gift.expiry_date)) return { label:'פג תוקף', color:'#ff4d4f', border:'#ff4d4f' };
+  if(isExpiringSoon(gift.expiry_date)) return { label:'עומד לפוג בקרוב', color:'#ffb84d', border:'#ffb84d' };
+  return { label:'פעיל', color:'#059669', border:'#059669' };
+}
+
+function giftLink(code){
+  return `${window.location.origin}/gift/${code}`;
+}
+
+function whatsappGiftMessage(gift){
+  const from = gift.from_name ? `\nהמתנה נשלחה באהבה מאת ${gift.from_name}.` : '';
+  return `שלום ${gift.recipient_name || ''} 🌿
+
+איזה כיף, מחכה לך שובר מתנה לטיפול אצל יניב מלמד.${from}
+
+פרטי השובר, משך הטיפול והתוקף מופיעים בקישור הבא:
+${giftLink(gift.code)}
+
+לתיאום מומלץ לשלוח הודעת וואטסאפ למספר 0524204411.`;
 }
 
 function getRoute(){
