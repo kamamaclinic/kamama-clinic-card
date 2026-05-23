@@ -613,6 +613,7 @@ async function updateClient(patch){
 }
 
 function AdminGifts(){
+const [session,setSession]=useState(null);
 const [gifts,setGifts]=useState([]);
 const [selectedId,setSelectedId]=useState(null);
 const [query,setQuery]=useState('');
@@ -637,7 +638,21 @@ const [loading,setLoading]=useState(true);
     setLoading(false);
   }
 
-  useEffect(()=>{ load() },[]);
+async function check(){
+  const {data}=await supabase.auth.getSession();
+
+  setSession(data.session);
+
+  if(data.session){
+    load();
+  } else {
+    setLoading(false);
+  }
+}
+
+useEffect(()=>{
+  check();
+},[]);
 
   async function createGift(){
     const today = new Date().toISOString().slice(0,10);
