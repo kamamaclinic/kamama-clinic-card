@@ -716,9 +716,18 @@ async function updateGift(patch){
     alert('הודעת וואטסאפ הועתקה');
   }
 
-  if(loading){
-    return <Shell><div className="center">טוען שוברים...</div></Shell>
-  }
+async function signOut(){
+  await supabase.auth.signOut();
+  setSession(null);
+}
+
+if(loading){
+  return <Shell><div className="center">טוען שוברים...</div></Shell>
+}
+
+if(!session){
+  return <Login onDone={check}/>
+}
 
   return <Shell>
 
@@ -739,9 +748,13 @@ async function updateGift(patch){
   שוברי מתנה
 </Button>
         </div>
-      </div>
+</div>
 
-    </header>
+<Button onClick={signOut} variant="outline">
+  <LogOut size={16}/> יציאה
+</Button>
+
+</header>
 
     <div className="adminGrid">
 
