@@ -314,13 +314,14 @@ function Admin(){
       })
       .eq('id', selected.id);
 
-    await supabase.from('transactions').insert({
-      client_id:selected.id,
-      minutes:CARD_SIZE,
-      description: expired
-        ? `חידוש כרטיסייה חדשה; ${currentRemaining} דקות פגו ותועדו`
-        : `חידוש כרטיסייה חדשה עם העברת יתרה של ${transferredRemaining} דקות`
-    });
+await supabase.from('transactions').insert({
+  client_id:selected.id,
+  minutes:CARD_SIZE,
+  description: expired
+    ? 'רכישת כרטיסייה חדשה - 300 דקות'
+    : `רכישת כרטיסייה חדשה - 300 דקות + העברת יתרה קודמת של ${transferredRemaining} דקות`,
+  created_at: now
+});
 
     await load();
     await loadAdminHistory(selected.id);
