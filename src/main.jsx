@@ -395,11 +395,28 @@ function Admin(){
 
   async function signOut(){ await supabase.auth.signOut(); setSession(null) }
 
-  async function updateClient(patch){
-    if(!selected) return;
-    await supabase.from('clients').update(patch).eq('id',selected.id);
-    await load();
-  }
+async function updateClient(patch){
+  if(!selected) return;
+
+  const id = selected.id;
+
+  setClients(prev =>
+    prev.map(c =>
+      c.id === id ? {...c, ...patch} : c
+    )
+  );
+
+  setArchivedClients(prev =>
+    prev.map(c =>
+      c.id === id ? {...c, ...patch} : c
+    )
+  );
+
+  await supabase
+    .from('clients')
+    .update(patch)
+    .eq('id', id);
+}
 
   async function createClient(){
     const now = new Date().toISOString();
