@@ -541,7 +541,8 @@ async function updateClient(patch){
       <Card><div className="content">
         <div className="rowBetween">
           <h2>{showArchive ? 'ארכיון' : 'מטופלים'}</h2>
-          <div className="actions">
+<div className="actions" style={{flexWrap:'nowrap'}}>
+  
             <Button onClick={toggleArchive} variant="outline">{showArchive ? 'חזרה לפעילים' : 'ארכיון'}</Button>
             {!showArchive && <Button onClick={createClient}><Plus size={16}/> חדש</Button>}
           </div>
@@ -712,7 +713,7 @@ async function updateGift(patch){
           <Gift size={16}/> שוברי מתנה
         </div>
 
-        <h1>שוברי מתנה</h1>
+<h1 style={{marginBottom:'6px'}}>שוברי מתנה</h1>
 
         <div className="actions" style={{marginTop:'12px'}}>
 <Button onClick={()=>window.location.href='/admin'} variant="outline">
