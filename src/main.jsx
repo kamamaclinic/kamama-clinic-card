@@ -15,6 +15,18 @@ function minutesToText(minutes){
   return `${m} דקות`;
 }
 
+function isExpired(date){
+  if(!date) return false;
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const target = new Date(date);
+  target.setHours(23,59,59,999);
+
+  return target < today;
+}
+
 function isExpiringSoon(date){
   if(!date) return false;
 
@@ -315,14 +327,14 @@ function Admin(){
       })
       .eq('id', selected.id);
 
-await supabase.from('transactions').insert({
-  client_id:selected.id,
-  minutes:CARD_SIZE,
-  description: expired
-    ? 'רכישת כרטיסייה חדשה - 300 דקות'
-    : `רכישת כרטיסייה חדשה - 300 דקות + העברת יתרה קודמת של ${transferredRemaining} דקות`,
-  created_at: now
-});
+    await supabase.from('transactions').insert({
+      client_id:selected.id,
+      minutes:CARD_SIZE,
+      description: expired
+        ? 'רכישת כרטיסייה חדשה - 300 דקות'
+        : `רכישת כרטיסייה חדשה - 300 דקות + העברת יתרה קודמת של ${transferredRemaining} דקות`,
+      created_at: now
+    });
 
     await load();
     await loadAdminHistory(selected.id);
