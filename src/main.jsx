@@ -427,6 +427,296 @@ function Admin(){
   </Shell>
 }
 
+function AdminGifts(){
+  const [gifts,setGifts]=useState([]);
+  const [selectedId,setSelectedId]=useState(null);
+  const [query,setQuery]=useState('');
+  const [loading,setLoading]=useState(true);
+
+  const selected = gifts.find(g=>g.id===selectedId) || null;
+
+  async function load(){
+    setLoading(true);
+
+    const {data}=await supabase
+      .from('gift_vouchers')
+      .select('*')
+      .order('created_at',{ascending:false});
+
+    setGifts(data || []);
+    setLoading(false);
+  }
+
+  useEffect(()=>{ load() },[]);
+
+  async function createGift(){
+    const today = new Date().toISOString().slice(0,10);
+
+    const {data}=await supabase
+      .from('gift_vouchers')
+      .insert({
+        code: generateGiftCode(),
+        recipient_name:'מקבל המתנה',
+        buyer_name:'',
+        from_name:'',
+        phone:'',
+        minutes:60,
+        purchase_date:today,
+        expiry_date:addOneYear(today),
+        blessing:'מתנה קטנה לגוף ולנפש 🌿',
+        redeemed:false,
+        internal_note:''
+      })
+      .select()
+      .single();
+
+    await load();
+
+    if(data?.id){
+      setSelectedId(data.id);
+    }
+  }
+
+  async function updateGift(patch){
+    if(!selected) return;
+
+    await supabase
+      .from('gift_vouchers')
+      .update(patch)
+      .eq('id',selected.id);
+
+    await load();
+  }
+
+  function copyGiftLink(){
+    if(!selected) return;
+
+    navigator.clipboard.writeText(giftLink(selected.code));
+    alert('קישור השובר הועתק');
+  }
+
+  function copyWhatsapp(){
+    if(!selected) return;
+
+    navigator.clipboard.writeText(
+      whatsappGiftMessage(selected)
+    );
+
+    alert('הודעת וואטסאפ הועתקה');
+  }
+
+  if(loading){
+    return <Shell><div className="center">טוען שוברים...</div></Shell>
+  }
+
+  return <Shell>
+
+    <header className="top">
+      <div>
+        <div className="pill">
+          <Gift size={16}/> שוברי מתנה
+        </div>
+
+        <h1>שוברי מתנה</h1>
+
+        <div className="actions" style={{marginTop:'12px'}}>
+          <Button onClick={()=>window.location.href='/admin'}>
+            כרטיסיות
+          </Button>
+
+          <Button variant="outline">
+            שוברי מתנה
+          </Button>
+        </div>
+      </div>
+
+      <Button onClick={createGift}>
+        <Plus size={16}/> חדש
+      </Button>
+    </header>
+
+    <div className="adminGrid">
+
+      <Card>
+        <div className="content">
+
+          <div className="search">
+            <Search size={16}/>
+            <input
+              placeholder="חיפוש לפי שם / קוד"
+              value={query}
+              onChange={e=>setQuery(e.target.value)}
+            />
+          </div>
+
+          {gifts
+            .filter(g=>
+              `${g.recipient_name||''} ${g.code||''}`
+                .toLowerCase()
+                .includes(query.toLowerCase())
+            )
+            .map(g=>{
+
+              const status = giftStatus(g);
+
+              return (
+                <button
+                  key={g.id}
+                  className={`clientBtn ${selected?.id===g.id?'active':''}`}
+                  onClick={()=>setSelectedId(g.id)}
+                  style={{border:`2px solid ${status.border}`}}
+                >
+                  <b>{g.recipient_name}</b>
+
+                  <small>
+                    {g.code} · {g.minutes} דקות
+                  </small>
+
+                  <div style={{
+                    color:status.color,
+                    fontSize:'12px',
+                    marginTop:'4px'
+                  }}>
+                    {status.label}
+                  </div>
+                </button>
+              )
+            })}
+
+        </div>
+      </Card>
+
+      {selected ? (
+        <Card>
+          <div className="content">
+
+            <div className="rowBetween">
+              <div>
+                <h2>{selected.recipient_name}</h2>
+                <p>{selected.code}</p>
+              </div>
+
+              <div className="actions">
+                <Button onClick={copyGiftLink} variant="outline">
+                  <Copy size={16}/> קישור
+                </Button>
+
+                <Button onClick={copyWhatsapp} variant="outline">
+                  <MessageCircle size={16}/> וואטסאפ
+                </Button>
+              </div>
+            </div>
+
+            <div className="fields">
+
+              <label>
+                שם מקבל המתנה
+                <input
+                  value={selected.recipient_name||''}
+                  onChange={e=>updateGift({
+                    recipient_name:e.target.value
+                  })}
+                />
+              </label>
+
+              <label>
+                טלפון
+                <input
+                  value={selected.phone||''}
+                  onChange={e=>updateGift({
+                    phone:e.target.value
+                  })}
+                />
+              </label>
+
+              <label>
+                ממי המתנה
+                <input
+                  value={selected.from_name||''}
+                  onChange={e=>updateGift({
+                    from_name:e.target.value
+                  })}
+                />
+              </label>
+
+              <label>
+                דקות טיפול
+                <input
+                  type="number"
+                  value={selected.minutes||60}
+                  onChange={e=>updateGift({
+                    minutes:Number(e.target.value)
+                  })}
+                />
+              </label>
+
+              <label>
+                תוקף
+                <input
+                  type="date"
+                  value={selected.expiry_date||''}
+                  onChange={e=>updateGift({
+                    expiry_date:e.target.value
+                  })}
+                />
+              </label>
+
+            </div>
+
+            <label>
+              ברכה
+              <textarea
+                value={selected.blessing||''}
+                onChange={e=>updateGift({
+                  blessing:e.target.value
+                })}
+              />
+            </label>
+
+            <label>
+              הערה פנימית
+              <textarea
+                value={selected.internal_note||''}
+                onChange={e=>updateGift({
+                  internal_note:e.target.value
+                })}
+              />
+            </label>
+
+            <div className="actions" style={{marginTop:'16px'}}>
+              <Button
+                variant={selected.redeemed ? 'outline' : 'green'}
+                onClick={()=>updateGift({
+                  redeemed:!selected.redeemed
+                })}
+              >
+                <CheckCircle2 size={16}/>
+                {selected.redeemed ? 'בטל ניצול' : 'סמן כנוצל'}
+              </Button>
+
+              <Button
+                onClick={()=>window.open(giftLink(selected.code),'_blank')}
+                variant="outline"
+              >
+                <Eye size={16}/> צפייה כלקוח
+              </Button>
+            </div>
+
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <div className="content">
+            בחר שובר מתנה מהרשימה.
+          </div>
+        </Card>
+      )}
+
+    </div>
+
+  </Shell>
+}
+
 function Shell({children}){ return <main><div className="app">{children}</div></main> }
 function App(){
   const route = getRoute()
