@@ -878,9 +878,9 @@ function App(){
     return <ClientPage token={route.token}/>
   }
 
-  if(route.section === 'gift' && route.token){
-    return <Shell><Card><div className="content"><h1>שובר מתנה</h1><p>כאן נבנה את עמוד השובר ללקוח.</p></div></Card></Shell>
-  }
+if(route.section === 'gift' && route.token){
+  return <ClientGiftPage code={route.token}/>
+}
 
   if(route.section === 'admin' && route.page === 'gifts'){
     return <AdminGifts/>
