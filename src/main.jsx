@@ -248,7 +248,30 @@ function Admin(){
     const ok = confirm('להוסיף 300 דקות לכרטיסייה ולעדכן תוקף לשנה מהיום?');
     if(!ok) return;
 
-    const newTotal = (selected.total_minutes || 0) + 300;
+async function quickCharge300(){
+  if(!selected) return;
+
+  const ok = confirm('להוסיף 300 דקות לכרטיסייה ולעדכן תוקף לשנה מהיום?');
+  if(!ok) return;
+
+  const newUsed = Math.max(0, (selected.used_minutes || 0) - 300);
+
+  await supabase
+    .from('clients')
+    .update({
+      used_minutes: newUsed,
+      expires_at: oneYearFromToday()
+    })
+    .eq('id', selected.id);
+
+  await supabase.from('transactions').insert({
+    client_id:selected.id,
+    minutes:300,
+    description:'טעינת כרטיסייה 300 דקות'
+  });
+
+  await load();
+}
 
     await supabase
       .from('clients')
