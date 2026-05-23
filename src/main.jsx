@@ -15,11 +15,6 @@ function minutesToText(minutes){
   return `${m} דקות`;
 }
 
-function isExpired(date){
-  if(!date) return false;
-  return new Date(date) < new Date(new Date().toDateString());
-}
-
 function isExpiringSoon(date){
   if(!date) return false;
 
@@ -32,13 +27,6 @@ function isExpiringSoon(date){
   const diff = target - today;
   const days = diff / (1000 * 60 * 60 * 24);
 
-  return days >= 0 && days <= 30;
-}
-  if(!date) return false;
-  const today = new Date();
-  const target = new Date(date);
-  const diff = target - today;
-  const days = diff / (1000 * 60 * 60 * 24);
   return days >= 0 && days <= 30;
 }
 
