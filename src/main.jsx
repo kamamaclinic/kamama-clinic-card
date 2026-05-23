@@ -507,13 +507,13 @@ function Admin(){
     <h1>כרטיסיות טיפולים</h1>
 
     <div className="actions" style={{marginTop:'12px'}}>
-      <Button onClick={()=>window.location.href='/admin'} variant="outline">
-        כרטיסיות
-      </Button>
+<Button onClick={()=>window.location.href='/admin'}>
+  כרטיסיות
+</Button>
 
-      <Button onClick={()=>window.location.href='/admin/gifts'} variant="outline">
-        שוברי מתנה
-      </Button>
+<Button onClick={()=>window.location.href='/admin/gifts'} variant="outline">
+  שוברי מתנה
+</Button>
     </div>
   </div>
 
@@ -644,16 +644,22 @@ function AdminGifts(){
     }
   }
 
-  async function updateGift(patch){
-    if(!selected) return;
+async function updateGift(patch){
+  if(!selected) return;
 
-    await supabase
-      .from('gift_vouchers')
-      .update(patch)
-      .eq('id',selected.id);
+  const id = selected.id;
 
-    await load();
-  }
+  setGifts(prev =>
+    prev.map(g =>
+      g.id === id ? {...g, ...patch} : g
+    )
+  );
+
+  await supabase
+    .from('gift_vouchers')
+    .update(patch)
+    .eq('id', id);
+}
 
   function copyGiftLink(){
     if(!selected) return;
@@ -687,13 +693,13 @@ function AdminGifts(){
         <h1>שוברי מתנה</h1>
 
         <div className="actions" style={{marginTop:'12px'}}>
-          <Button onClick={()=>window.location.href='/admin'}>
-            כרטיסיות
-          </Button>
+<Button onClick={()=>window.location.href='/admin'} variant="outline">
+  כרטיסיות
+</Button>
 
-          <Button variant="outline">
-            שוברי מתנה
-          </Button>
+<Button>
+  שוברי מתנה
+</Button>
         </div>
       </div>
 
