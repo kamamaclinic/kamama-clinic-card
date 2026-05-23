@@ -729,6 +729,10 @@ function App(){
     return <Shell><Card><div className="content"><h1>שובר מתנה</h1><p>כאן נבנה את עמוד השובר ללקוח.</p></div></Card></Shell>
   }
 
+  if(route.section === 'admin' && route.page === 'gifts'){
+    return <AdminGifts/>
+  }
+
   return <Admin/>
 }
 createRoot(document.getElementById('root')).render(<App />)
