@@ -179,6 +179,159 @@ function ClientPage({token}){
   return <Shell><ClientCard card={card} history={history}/></Shell>
 }
 
+function ClientGiftPage({code}){
+  const [gift,setGift]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState('');
+
+  async function load(){
+    setLoading(true);
+
+    const {data,error}=await supabase
+      .from('gift_vouchers')
+      .select('*')
+      .eq('code',code)
+      .maybeSingle();
+
+    if(error){
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
+
+    if(!data){
+      setErr('שובר המתנה לא נמצא.');
+      setLoading(false);
+      return;
+    }
+
+    setGift(data);
+    setLoading(false);
+  }
+
+  useEffect(()=>{
+    load();
+  },[code]);
+
+  if(loading){
+    return <Shell>
+      <div className="center">טוען שובר מתנה...</div>
+    </Shell>
+  }
+
+  if(err){
+    return <Shell>
+      <Card>
+        <div className="content">
+          <h1>אופס</h1>
+          <p>{err}</p>
+        </div>
+      </Card>
+    </Shell>
+  }
+
+  const status = giftStatus(gift);
+
+  return <Shell>
+
+    <div className="clientWrap">
+
+      <Card>
+
+        <div className="hero">
+
+          <div className="pill">
+            <Gift size={16}/> שובר מתנה
+          </div>
+
+          <h1>שלום {gift.recipient_name}</h1>
+
+          <p>
+            מחכה לך טיפול מתנה 🌿
+          </p>
+
+        </div>
+
+        <div className="content">
+
+          <div
+            className="infoBox"
+            style={{border:`2px solid ${status.border}`}}
+          >
+            <b style={{color:status.color}}>
+              {status.label}
+            </b>
+          </div>
+
+          <div className="statsGrid">
+
+            <Stat
+              icon={CalendarClock}
+              label="משך הטיפול"
+              value={`${gift.minutes} דקות`}
+            />
+
+            <Stat
+              icon={ShieldCheck}
+              label="בתוקף עד"
+              value={gift.expiry_date || '—'}
+            />
+
+            <Stat
+              icon={Gift}
+              label="מספר שובר"
+              value={gift.code}
+            />
+
+          </div>
+
+          {gift.from_name && (
+            <div className="infoBox">
+              <b>המתנה מאת</b>
+              <p>{gift.from_name}</p>
+            </div>
+          )}
+
+          <div className="infoBox">
+            <b>ברכה</b>
+            <p>{gift.blessing || '—'}</p>
+          </div>
+
+          <div className="infoBox">
+            <b>יצירת קשר</b>
+
+            <p>
+              טלפון:
+              {' '}
+              0524204411
+            </p>
+
+            <p>
+              אם אין מענה מומלץ ליצור קשר בוואטסאפ.
+            </p>
+
+            <p>
+              כתובת:
+              {' '}
+              עזריאל 11, ירושלים
+            </p>
+
+            <p>
+              אתר:
+              {' '}
+              www.kamama.co.il
+            </p>
+          </div>
+
+        </div>
+
+      </Card>
+
+    </div>
+
+  </Shell>
+}
+
 function Login({onDone}){
   const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [err,setErr]=useState(''); const [loading,setLoading]=useState(false)
 
