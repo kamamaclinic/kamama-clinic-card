@@ -5,6 +5,8 @@ import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash
 import { motion } from 'framer-motion'
 import './styles.css'
 
+const CARD_SIZE = 300
+
 function minutesToText(minutes){
   const safe = Math.max(0, Number(minutes||0));
   const h = Math.floor(safe/60); const m = safe%60;
@@ -44,7 +46,8 @@ function Stat({icon:Icon,label,value}){ return <div className="stat"><div classN
 
 function ClientCard({card, history=[]}){
   const remaining = Math.max(0, card.total_minutes - card.used_minutes)
-  const percent = card.total_minutes ? Math.round((remaining/card.total_minutes)*100) : 0
+  const percent = Math.round((remaining / CARD_SIZE) * 100)
+  const progressWidth = Math.max(0, Math.min(100, percent))
   const expired = isExpired(card.expires_at)
   const expiringSoon = isExpiringSoon(card.expires_at)
 
@@ -71,8 +74,11 @@ function ClientCard({card, history=[]}){
           <Stat icon={ShieldCheck} label="בתוקף עד" value={card.expires_at || 'לא הוגדר'} />
         </div>
 
-        <div className="progressText"><span>ניצול הכרטיסייה</span><span>{percent}% נותר</span></div>
-        <div className="progress"><div style={{width:`${Math.max(0,Math.min(100,percent))}%`}} /></div>
+        <div className="progressText">
+          <span>יתרה ביחס לכרטיסייה רגילה</span>
+          <span>{percent}%</span>
+        </div>
+        <div className="progress"><div style={{width:`${progressWidth}%`}} /></div>
 
         <div className="infoBox">
           <b>פרטים</b>
@@ -248,7 +254,7 @@ function Admin(){
     const ok = confirm('להוסיף כרטיסייה חדשה של 300 דקות ולעדכן תוקף לשנה מהיום?');
     if(!ok) return;
 
-    const newTotal = (selected.total_minutes || 0) + 300;
+    const newTotal = (selected.total_minutes || 0) + CARD_SIZE;
 
     await supabase
       .from('clients')
@@ -260,7 +266,7 @@ function Admin(){
 
     await supabase.from('transactions').insert({
       client_id:selected.id,
-      minutes:300,
+      minutes:CARD_SIZE,
       description:'טעינת כרטיסייה 300 דקות'
     });
 
