@@ -612,12 +612,17 @@ async function updateClient(patch){
 }
 
 function AdminGifts(){
-  const [gifts,setGifts]=useState([]);
-  const [selectedId,setSelectedId]=useState(null);
-  const [query,setQuery]=useState('');
-  const [loading,setLoading]=useState(true);
+const [gifts,setGifts]=useState([]);
+const [selectedId,setSelectedId]=useState(null);
+const [query,setQuery]=useState('');
+const [showArchive,setShowArchive]=useState(false);
+const [loading,setLoading]=useState(true);
 
   const selected = gifts.find(g=>g.id===selectedId) || null;
+
+  const displayedGifts = gifts.filter(g =>
+  showArchive ? g.redeemed : !g.redeemed
+);
 
   async function load(){
     setLoading(true);
@@ -720,9 +725,25 @@ async function updateGift(patch){
         </div>
       </div>
 
-      <Button onClick={createGift}>
-        <Plus size={16}/> חדש
-      </Button>
+<div className="actions">
+
+  <Button
+    onClick={()=>{
+      setShowArchive(!showArchive);
+      setSelectedId(null);
+    }}
+    variant="outline"
+  >
+    {showArchive ? 'חזרה לפעילים' : 'ארכיון'}
+  </Button>
+
+  {!showArchive && (
+    <Button onClick={createGift}>
+      <Plus size={16}/> חדש
+    </Button>
+  )}
+
+</div>
     </header>
 
     <div className="adminGrid">
@@ -739,7 +760,7 @@ async function updateGift(patch){
             />
           </div>
 
-          {gifts
+          {displayedGifts
             .filter(g=>
               `${g.recipient_name||''} ${g.code||''}`
                 .toLowerCase()
