@@ -13,6 +13,26 @@ function minutesToText(minutes){
   return `${m} דקות`;
 }
 
+function isExpired(date){
+  if(!date) return false;
+  return new Date(date) < new Date(new Date().toDateString());
+}
+
+function isExpiringSoon(date){
+  if(!date) return false;
+  const today = new Date();
+  const target = new Date(date);
+  const diff = target - today;
+  const days = diff / (1000 * 60 * 60 * 24);
+  return days >= 0 && days <= 30;
+}
+
+function oneYearFromToday(){
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0,10);
+}
+
 function getTokenFromPath(){
   const parts = window.location.pathname.split('/').filter(Boolean)
   return parts[0] === 'card' ? parts[1] : null
@@ -25,6 +45,8 @@ function Stat({icon:Icon,label,value}){ return <div className="stat"><div classN
 function ClientCard({card, history=[]}){
   const remaining = Math.max(0, card.total_minutes - card.used_minutes)
   const percent = card.total_minutes ? Math.round((remaining/card.total_minutes)*100) : 0
+  const expired = isExpired(card.expires_at)
+  const expiringSoon = isExpiringSoon(card.expires_at)
 
   return <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="clientWrap">
     <Card>
@@ -34,15 +56,30 @@ function ClientCard({card, history=[]}){
         <p>כאן אפשר לראות את יתרת הזמן בכרטיסיית הטיפולים שלך.</p>
       </div>
       <div className="content">
+        {(expired || expiringSoon) && (
+          <div className="infoBox" style={{border: expired ? '2px solid #ff4d4f' : '2px solid #ffb84d'}}>
+            <b style={{color: expired ? '#ff4d4f' : '#ffb84d'}}>
+              {expired ? 'הכרטיסייה פגה תוקף' : 'הכרטיסייה עומדת לפוג בקרוב'}
+            </b>
+          </div>
+        )}
+
         <div className="statsGrid">
           <Stat icon={ShieldCheck} label="מספר כרטיסייה" value={card.card_number ? `#${card.card_number}` : '—'} />
           <Stat icon={Clock} label="יתרה" value={minutesToText(remaining)} />
           <Stat icon={User} label="סה״כ בכרטיסייה" value={minutesToText(card.total_minutes)} />
           <Stat icon={ShieldCheck} label="בתוקף עד" value={card.expires_at || 'לא הוגדר'} />
         </div>
+
         <div className="progressText"><span>ניצול הכרטיסייה</span><span>{percent}% נותר</span></div>
         <div className="progress"><div style={{width:`${Math.max(0,Math.min(100,percent))}%`}} /></div>
-        <div className="infoBox"><b>פרטים</b><p>נוסף בתאריך: {card.purchased_at || '—'}</p><p>הערה: {card.note || '—'}</p></div>
+
+        <div className="infoBox">
+          <b>פרטים</b>
+          <p>נוסף בתאריך: {card.purchased_at || '—'}</p>
+          <p>הערה: {card.note || '—'}</p>
+        </div>
+
         <h2>היסטוריית פעולות</h2>
         <div className="history">
           {history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=><div className="histRow" key={x.id}><div><b>{x.description || 'פעולה'}</b><small>{new Date(x.created_at).toLocaleDateString('he-IL')}</small></div><b className={x.minutes < 0 ? 'red':'green'}>{x.minutes > 0 ? '+' : ''}{x.minutes} דק׳</b></div>)}
@@ -61,11 +98,13 @@ function ClientPage({token}){
     if(error){ setErr(error.message); setLoading(false); return }
     if(!data || data.length===0){ setErr('הכרטיסייה לא נמצאה.'); setLoading(false); return }
     const found=data[0]; setCard(found)
+
     const {data:fullClient}=await supabase.from('clients').select('id').eq('view_token',token).maybeSingle()
     if(fullClient?.id){
       const {data:tx}=await supabase.from('transactions').select('*').eq('client_id',fullClient.id).order('created_at',{ascending:false})
       setHistory(tx||[])
     }
+
     setLoading(false)
   }
 
@@ -102,7 +141,7 @@ function Admin(){
   const [loading,setLoading]=useState(true);
 
   const selected=useMemo(
-    ()=>[...clients, ...archivedClients].find(c=>c.id===selectedId)||clients[0]||archivedClients[0],
+    ()=>[...clients, ...archivedClients].find(c=>c.id===selectedId) || null,
     [clients, archivedClients, selectedId]
   )
 
@@ -131,7 +170,6 @@ function Admin(){
     if(!activeError){
       setClients(activeData||[]);
       setArchivedClients(archiveData||[]);
-      if(activeData?.[0] && !selectedId) setSelectedId(activeData[0].id);
     } 
   }
 
@@ -141,8 +179,18 @@ function Admin(){
   if(!session) return <Login onDone={check}/>
 
   async function signOut(){ await supabase.auth.signOut(); setSession(null) }
-  async function updateClient(patch){ await supabase.from('clients').update(patch).eq('id',selected.id); await load() }
-  async function createClient(){ const {data}=await supabase.from('clients').insert({name:'מטופל חדש', used_minutes:0}).select().single(); await load(); if(data?.id) setSelectedId(data.id) }
+
+  async function updateClient(patch){
+    if(!selected) return;
+    await supabase.from('clients').update(patch).eq('id',selected.id);
+    await load();
+  }
+
+  async function createClient(){
+    const {data}=await supabase.from('clients').insert({name:'מטופל חדש', used_minutes:0}).select().single();
+    await load();
+    if(data?.id) setSelectedId(data.id)
+  }
 
   async function deleteClient(){
     if(!selected) return;
@@ -165,7 +213,7 @@ function Admin(){
       .eq('id', id);
 
     setShowArchive(false);
-    setSelectedId(id);
+    setSelectedId(null);
     await load();
   }
 
@@ -183,17 +231,52 @@ function Admin(){
   }
 
   async function addTx(amount){
-    if(!selected) return
-    const newUsed = amount < 0 ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount)) : Math.max(0, selected.used_minutes - amount)
-    await supabase.from('transactions').insert({client_id:selected.id, minutes:amount, description:desc})
-    await supabase.from('clients').update({used_minutes:newUsed}).eq('id',selected.id)
-    await load()
+    if(!selected) return;
+
+    const newUsed = amount < 0
+      ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount))
+      : Math.max(0, selected.used_minutes - amount);
+
+    await supabase.from('transactions').insert({client_id:selected.id, minutes:amount, description:desc});
+    await supabase.from('clients').update({used_minutes:newUsed}).eq('id',selected.id);
+    await load();
+  }
+
+  async function quickCharge300(){
+    if(!selected) return;
+
+    const ok = confirm('להוסיף 300 דקות לכרטיסייה ולעדכן תוקף לשנה מהיום?');
+    if(!ok) return;
+
+    const newTotal = (selected.total_minutes || 0) + 300;
+
+    await supabase
+      .from('clients')
+      .update({
+        total_minutes: newTotal,
+        expires_at: oneYearFromToday()
+      })
+      .eq('id', selected.id);
+
+    await supabase.from('transactions').insert({
+      client_id:selected.id,
+      minutes:300,
+      description:'טעינת כרטיסייה 300 דקות'
+    });
+
+    await load();
   }
 
   function copyLink(){
+    if(!selected) return;
     const link=`${window.location.origin}/card/${selected.view_token}`;
     navigator.clipboard.writeText(link);
     alert('הקישור הועתק')
+  }
+
+  function toggleArchive(){
+    setShowArchive(!showArchive);
+    setSelectedId(null);
   }
 
   return <Shell>
@@ -212,13 +295,7 @@ function Admin(){
             <h2>{showArchive ? 'ארכיון' : 'מטופלים'}</h2>
 
             <div className="actions">
-<Button onClick={()=>{
-  const nextShowArchive = !showArchive;
-  setShowArchive(nextShowArchive);
-
-  const nextList = nextShowArchive ? archivedClients : clients;
-  setSelectedId(nextList?.[0]?.id || null);
-}} variant="outline">
+              <Button onClick={toggleArchive} variant="outline">
                 {showArchive ? 'חזרה לפעילים' : 'ארכיון'}
               </Button>
 
@@ -235,12 +312,31 @@ function Admin(){
             <input placeholder="חיפוש לפי שם / טלפון / מספר כרטיסייה" value={query} onChange={e=>setQuery(e.target.value)} />
           </div>
 
-          {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>
-            <button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)}>
-              <b>{c.name}</b>
-              <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small>
-            </button>
-          )}
+          {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>{
+            const expired = isExpired(c.expires_at);
+            const expiringSoon = isExpiringSoon(c.expires_at);
+
+            return (
+              <button
+                className={`clientBtn ${selected?.id===c.id?'active':''}`}
+                key={c.id}
+                onClick={()=>setSelectedId(c.id)}
+                style={{
+                  border: expired
+                    ? '2px solid #ff4d4f'
+                    : expiringSoon
+                    ? '2px solid #ffb84d'
+                    : undefined
+                }}
+              >
+                <b>{c.name}</b>
+                <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small>
+
+                {expired && <div style={{color:'#ff4d4f',fontSize:'12px',marginTop:'4px'}}>פג תוקף</div>}
+                {!expired && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
+              </button>
+            )
+          })}
         </div>
       </Card>
 
@@ -250,6 +346,9 @@ function Admin(){
             <div>
               <h2>{selected.name}</h2>
               <p>כרטיסייה #{selected.card_number || '—'} · יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p>
+
+              {isExpired(selected.expires_at) && <p style={{color:'#ff4d4f',fontWeight:'bold'}}>פג תוקף</p>}
+              {!isExpired(selected.expires_at) && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
             </div>
 
             <div className="actions">
@@ -288,6 +387,11 @@ function Admin(){
           {!showArchive && (
             <div className="charge">
               <h3>טעינה / גריעת זמן</h3>
+
+              <Button onClick={quickCharge300} variant="green">
+                <Plus size={16}/> טעינת כרטיסייה 300 דקות
+              </Button>
+
               <div className="chargeGrid">
                 <input type="number" value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/>
                 <input value={desc} onChange={e=>setDesc(e.target.value)}/>
@@ -299,7 +403,7 @@ function Admin(){
 
           <ClientCard card={selected} history={[]} />
         </div>
-      </Card> : <Card><div className="content">{showArchive ? 'אין כרטיסיות בארכיון.' : 'אין מטופלים עדיין.'}</div></Card>}
+      </Card> : <Card><div className="content">{showArchive ? 'בחר כרטיסייה מהארכיון.' : 'בחר כרטיסייה פעילה מהרשימה.'}</div></Card>}
     </div>
   </Shell>
 }
