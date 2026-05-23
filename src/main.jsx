@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { supabase } from './supabaseClient'
-import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, User, Copy, Trash2 } from 'lucide-react'
+import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './styles.css'
 
@@ -55,6 +55,7 @@ function ClientCard({card, history=[]}){
         <h1>שלום {card.name}</h1>
         <p>כאן אפשר לראות את יתרת הזמן בכרטיסיית הטיפולים שלך.</p>
       </div>
+
       <div className="content">
         {(expired || expiringSoon) && (
           <div className="infoBox" style={{border: expired ? '2px solid #ff4d4f' : '2px solid #ffb84d'}}>
@@ -67,7 +68,6 @@ function ClientCard({card, history=[]}){
         <div className="statsGrid">
           <Stat icon={ShieldCheck} label="מספר כרטיסייה" value={card.card_number ? `#${card.card_number}` : '—'} />
           <Stat icon={Clock} label="יתרה" value={minutesToText(remaining)} />
-          <Stat icon={User} label="סה״כ בכרטיסייה" value={minutesToText(card.total_minutes)} />
           <Stat icon={ShieldCheck} label="בתוקף עד" value={card.expires_at || 'לא הוגדר'} />
         </div>
 
@@ -245,33 +245,10 @@ function Admin(){
   async function quickCharge300(){
     if(!selected) return;
 
-    const ok = confirm('להוסיף 300 דקות לכרטיסייה ולעדכן תוקף לשנה מהיום?');
+    const ok = confirm('להוסיף כרטיסייה חדשה של 300 דקות ולעדכן תוקף לשנה מהיום?');
     if(!ok) return;
 
-async function quickCharge300(){
-  if(!selected) return;
-
-  const ok = confirm('להוסיף 300 דקות לכרטיסייה ולעדכן תוקף לשנה מהיום?');
-  if(!ok) return;
-
-  const newUsed = Math.max(0, (selected.used_minutes || 0) - 300);
-
-  await supabase
-    .from('clients')
-    .update({
-      used_minutes: newUsed,
-      expires_at: oneYearFromToday()
-    })
-    .eq('id', selected.id);
-
-  await supabase.from('transactions').insert({
-    client_id:selected.id,
-    minutes:300,
-    description:'טעינת כרטיסייה 300 דקות'
-  });
-
-  await load();
-}
+    const newTotal = (selected.total_minutes || 0) + 300;
 
     await supabase
       .from('clients')
@@ -345,16 +322,11 @@ async function quickCharge300(){
                 key={c.id}
                 onClick={()=>setSelectedId(c.id)}
                 style={{
-                  border: expired
-                    ? '2px solid #ff4d4f'
-                    : expiringSoon
-                    ? '2px solid #ffb84d'
-                    : undefined
+                  border: expired ? '2px solid #ff4d4f' : expiringSoon ? '2px solid #ffb84d' : undefined
                 }}
               >
                 <b>{c.name}</b>
                 <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(c.total_minutes-c.used_minutes)}</small>
-
                 {expired && <div style={{color:'#ff4d4f',fontSize:'12px',marginTop:'4px'}}>פג תוקף</div>}
                 {!expired && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
               </button>
@@ -369,7 +341,6 @@ async function quickCharge300(){
             <div>
               <h2>{selected.name}</h2>
               <p>כרטיסייה #{selected.card_number || '—'} · יתרה: {minutesToText(selected.total_minutes-selected.used_minutes)}</p>
-
               {isExpired(selected.expires_at) && <p style={{color:'#ff4d4f',fontWeight:'bold'}}>פג תוקף</p>}
               {!isExpired(selected.expires_at) && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
             </div>
@@ -381,10 +352,7 @@ async function quickCharge300(){
 
               {showArchive ? (
                 <>
-                  <Button onClick={()=>restoreClient(selected.id)} variant="green">
-                    שחזר
-                  </Button>
-
+                  <Button onClick={()=>restoreClient(selected.id)} variant="green">שחזר</Button>
                   <Button onClick={()=>permanentlyDeleteClient(selected.id)} variant="danger">
                     <Trash2 size={16}/> מחק סופית
                   </Button>
@@ -401,7 +369,7 @@ async function quickCharge300(){
             <label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label>
             <label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label>
             <label>מספר כרטיסייה<input type="number" value={selected.card_number||''} onChange={e=>updateClient({card_number:Number(e.target.value)})}/></label>
-            <label>סה״כ דקות<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
+            <label>סה״כ דקות שנרכשו<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
             <label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label>
           </div>
 
