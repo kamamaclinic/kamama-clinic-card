@@ -22,6 +22,19 @@ function isExpired(date){
 
 function isExpiringSoon(date){
   if(!date) return false;
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const target = new Date(date);
+  target.setHours(23,59,59,999);
+
+  const diff = target - today;
+  const days = diff / (1000 * 60 * 60 * 24);
+
+  return days >= 0 && days <= 30;
+}
+  if(!date) return false;
   const today = new Date();
   const target = new Date(date);
   const diff = target - today;
