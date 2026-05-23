@@ -501,10 +501,24 @@ function Admin(){
   }
 
   return <Shell>
-    <header className="top">
-      <div><div className="pill"><ShieldCheck size={16}/> אזור ניהול</div><h1>כרטיסיות טיפולים</h1></div>
-      <Button onClick={signOut} variant="outline"><LogOut size={16}/> יציאה</Button>
-    </header>
+<header className="top">
+  <div>
+    <div className="pill"><ShieldCheck size={16}/> אזור ניהול</div>
+    <h1>כרטיסיות טיפולים</h1>
+
+    <div className="actions" style={{marginTop:'12px'}}>
+      <Button onClick={()=>window.location.href='/admin'} variant="outline">
+        כרטיסיות
+      </Button>
+
+      <Button onClick={()=>window.location.href='/admin/gifts'} variant="outline">
+        שוברי מתנה
+      </Button>
+    </div>
+  </div>
+
+  <Button onClick={signOut} variant="outline"><LogOut size={16}/> יציאה</Button>
+</header>
 
     <div className="adminGrid">
       <Card><div className="content">
