@@ -36,9 +36,14 @@ function oneYearFromToday(){
   return d.toISOString().slice(0,10);
 }
 
-function getTokenFromPath(){
+function getRoute(){
   const parts = window.location.pathname.split('/').filter(Boolean)
-  return parts[0] === 'card' ? parts[1] : null
+
+  return {
+    section: parts[0] || 'admin',
+    page: parts[1] || '',
+    token: parts[1] || null
+  }
 }
 
 function Card({children, className=''}){ return <div className={`card ${className}`}>{children}</div> }
@@ -385,5 +390,17 @@ function Admin(){
 }
 
 function Shell({children}){ return <main><div className="app">{children}</div></main> }
-function App(){ const token=getTokenFromPath(); return token ? <ClientPage token={token}/> : <Admin/> }
+function App(){
+  const route = getRoute()
+
+  if(route.section === 'card' && route.token){
+    return <ClientPage token={route.token}/>
+  }
+
+  if(route.section === 'gift' && route.token){
+    return <Shell><Card><div className="content"><h1>שובר מתנה</h1><p>כאן נבנה את עמוד השובר ללקוח.</p></div></Card></Shell>
+  }
+
+  return <Admin/>
+}
 createRoot(document.getElementById('root')).render(<App />)
