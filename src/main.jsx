@@ -17,28 +17,16 @@ function minutesToText(minutes){
 
 function isExpired(date){
   if(!date) return false;
-
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const target = new Date(date);
-  target.setHours(23,59,59,999);
-
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(date); target.setHours(23,59,59,999);
   return target < today;
 }
 
 function isExpiringSoon(date){
   if(!date) return false;
-
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const target = new Date(date);
-  target.setHours(23,59,59,999);
-
-  const diff = target - today;
-  const days = diff / (1000 * 60 * 60 * 24);
-
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(date); target.setHours(23,59,59,999);
+  const days = (target - today) / (1000 * 60 * 60 * 24);
   return days >= 0 && days <= 30;
 }
 
@@ -101,7 +89,17 @@ function ClientCard({card, history=[]}){
 
         <h2>היסטוריית פעולות</h2>
         <div className="history">
-          {history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=><div className="histRow" key={x.id}><div><b>{x.description || 'פעולה'}</b><small>{new Date(x.created_at).toLocaleDateString('he-IL')}</small></div><b className={x.minutes < 0 ? 'red':'green'}>{x.minutes > 0 ? '+' : ''}{x.minutes} דק׳</b></div>)}
+          {history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=>
+            <div className="histRow" key={x.id}>
+              <div>
+                <b>{x.description || 'פעולה'}</b>
+                <small>{new Date(x.created_at).toLocaleDateString('he-IL')}</small>
+              </div>
+              <b className={x.minutes < 0 ? 'red' : x.minutes > 0 ? 'green' : ''} style={x.minutes === 0 ? {color:'#888'} : {}}>
+                {x.minutes > 0 ? '+' : ''}{x.minutes} דק׳
+              </b>
+            </div>
+          )}
         </div>
       </div>
     </Card>
@@ -123,11 +121,7 @@ function ClientPage({token}){
 
     if(fullClient?.id){
       let query = supabase.from('transactions').select('*').eq('client_id',fullClient.id).order('created_at',{ascending:false})
-
-      if(fullClient.current_cycle_started_at){
-        query = query.gte('created_at', fullClient.current_cycle_started_at)
-      }
-
+      if(fullClient.current_cycle_started_at) query = query.gte('created_at', fullClient.current_cycle_started_at)
       const {data:tx}=await query
       setHistory(tx||[])
     }
@@ -183,18 +177,8 @@ function Admin(){
   }
 
   async function load(){ 
-    const {data: activeData, error: activeError}=await supabase
-      .from('clients')
-      .select('*')
-      .is('archived_at', null)
-      .order('created_at',{ascending:false}); 
-
-    const {data: archiveData}=await supabase
-      .from('clients')
-      .select('*')
-      .not('archived_at', 'is', null)
-      .order('archived_at',{ascending:false}); 
-
+    const {data: activeData, error: activeError}=await supabase.from('clients').select('*').is('archived_at', null).order('created_at',{ascending:false}); 
+    const {data: archiveData}=await supabase.from('clients').select('*').not('archived_at', 'is', null).order('archived_at',{ascending:false}); 
     if(!activeError){
       setClients(activeData||[]);
       setArchivedClients(archiveData||[]);
@@ -202,26 +186,13 @@ function Admin(){
   }
 
   async function loadAdminHistory(clientId){
-    if(!clientId){
-      setAdminHistory([]);
-      return;
-    }
-
-    const {data}=await supabase
-      .from('transactions')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at',{ascending:false});
-
+    if(!clientId){ setAdminHistory([]); return; }
+    const {data}=await supabase.from('transactions').select('*').eq('client_id', clientId).order('created_at',{ascending:false});
     setAdminHistory(data||[]);
   }
 
   useEffect(()=>{check()},[])
-
-  useEffect(()=>{
-    if(session && selected?.id) loadAdminHistory(selected.id)
-    else setAdminHistory([])
-  },[session, selectedId])
+  useEffect(()=>{ if(session && selected?.id) loadAdminHistory(selected.id); else setAdminHistory([]) },[session, selectedId])
 
   if(loading) return <Shell><div className="center">טוען...</div></Shell>
   if(!session) return <Login onDone={check}/>
@@ -236,13 +207,7 @@ function Admin(){
 
   async function createClient(){
     const now = new Date().toISOString();
-
-    const {data}=await supabase
-      .from('clients')
-      .insert({name:'מטופל חדש', used_minutes:0, current_cycle_started_at: now})
-      .select()
-      .single();
-
+    const {data}=await supabase.from('clients').insert({name:'מטופל חדש', used_minutes:0, current_cycle_started_at: now}).select().single();
     await load();
     if(data?.id) setSelectedId(data.id)
   }
@@ -251,22 +216,13 @@ function Admin(){
     if(!selected) return;
     const ok = confirm('האם אתה בטוח שברצונך להעביר את הכרטיסייה לארכיון?');
     if(!ok) return;
-
-    await supabase
-      .from('clients')
-      .update({ archived_at: new Date().toISOString() })
-      .eq('id', selected.id);
-
+    await supabase.from('clients').update({ archived_at: new Date().toISOString() }).eq('id', selected.id);
     setSelectedId(null);
     await load();
   }
 
   async function restoreClient(id){
-    await supabase
-      .from('clients')
-      .update({ archived_at: null })
-      .eq('id', id);
-
+    await supabase.from('clients').update({ archived_at: null }).eq('id', id);
     setShowArchive(false);
     setSelectedId(null);
     await load();
@@ -275,23 +231,14 @@ function Admin(){
   async function permanentlyDeleteClient(id){
     const ok = confirm('מחיקה סופית! הכרטיסייה תימחק לצמיתות ולא ניתן יהיה לשחזר אותה. האם אתה בטוח?');
     if(!ok) return;
-
-    await supabase
-      .from('clients')
-      .delete()
-      .eq('id', id);
-
+    await supabase.from('clients').delete().eq('id', id);
     setSelectedId(null);
     await load();
   }
 
   async function addTx(amount){
     if(!selected) return;
-
-    const newUsed = amount < 0
-      ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount))
-      : Math.max(0, selected.used_minutes - amount);
-
+    const newUsed = amount < 0 ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount)) : Math.max(0, selected.used_minutes - amount);
     await supabase.from('transactions').insert({client_id:selected.id, minutes:amount, description:desc});
     await supabase.from('clients').update({used_minutes:newUsed}).eq('id',selected.id);
     await load();
@@ -303,29 +250,34 @@ function Admin(){
 
     const expired = isExpired(selected.expires_at);
     const now = new Date().toISOString();
+    const expiredRecordTime = new Date(Date.now() - 1000).toISOString();
     const currentRemaining = Math.max(0, selected.total_minutes - selected.used_minutes);
     const transferredRemaining = expired ? 0 : currentRemaining;
-    const expiredUnusedTotal = (selected.expired_unused_minutes || 0) + (expired ? currentRemaining : 0);
     const newTotal = transferredRemaining + CARD_SIZE;
 
     const ok = confirm(
       expired
-        ? `הכרטיסייה פגה תוקף. ${minutesToText(currentRemaining)} שלא נוצלו יתועדו פנימית, והכרטיסייה החדשה תתחיל עם 300 דקות. להמשיך?`
+        ? `הכרטיסייה פגה תוקף. ${minutesToText(currentRemaining)} שלא נוצלו יתועדו בהיסטוריה, והכרטיסייה החדשה תתחיל עם 300 דקות. להמשיך?`
         : `לחדש כרטיסייה: היתרה הקיימת (${minutesToText(transferredRemaining)}) תתווסף ל-300 דקות חדשות. להמשיך?`
     );
     if(!ok) return;
 
-    await supabase
-      .from('clients')
-      .update({
-        total_minutes: newTotal,
-        used_minutes: 0,
-        expires_at: oneYearFromToday(),
-        purchased_at: new Date().toISOString().slice(0,10),
-        expired_unused_minutes: expiredUnusedTotal,
-        current_cycle_started_at: now
-      })
-      .eq('id', selected.id);
+    if(expired && currentRemaining > 0){
+      await supabase.from('transactions').insert({
+        client_id:selected.id,
+        minutes:0,
+        description:`דקות שלא נוצלו עקב פקיעת תוקף: ${currentRemaining} דקות`,
+        created_at: expiredRecordTime
+      });
+    }
+
+    await supabase.from('clients').update({
+      total_minutes: newTotal,
+      used_minutes: 0,
+      expires_at: oneYearFromToday(),
+      purchased_at: new Date().toISOString().slice(0,10),
+      current_cycle_started_at: now
+    }).eq('id', selected.id);
 
     await supabase.from('transactions').insert({
       client_id:selected.id,
@@ -354,126 +306,80 @@ function Admin(){
 
   return <Shell>
     <header className="top">
-      <div>
-        <div className="pill"><ShieldCheck size={16}/> אזור ניהול</div>
-        <h1>כרטיסיות טיפולים</h1>
-      </div>
+      <div><div className="pill"><ShieldCheck size={16}/> אזור ניהול</div><h1>כרטיסיות טיפולים</h1></div>
       <Button onClick={signOut} variant="outline"><LogOut size={16}/> יציאה</Button>
     </header>
 
     <div className="adminGrid">
-      <Card>
-        <div className="content">
-          <div className="rowBetween">
-            <h2>{showArchive ? 'ארכיון' : 'מטופלים'}</h2>
-
-            <div className="actions">
-              <Button onClick={toggleArchive} variant="outline">
-                {showArchive ? 'חזרה לפעילים' : 'ארכיון'}
-              </Button>
-
-              {!showArchive && (
-                <Button onClick={createClient}>
-                  <Plus size={16}/> חדש
-                </Button>
-              )}
-            </div>
+      <Card><div className="content">
+        <div className="rowBetween">
+          <h2>{showArchive ? 'ארכיון' : 'מטופלים'}</h2>
+          <div className="actions">
+            <Button onClick={toggleArchive} variant="outline">{showArchive ? 'חזרה לפעילים' : 'ארכיון'}</Button>
+            {!showArchive && <Button onClick={createClient}><Plus size={16}/> חדש</Button>}
           </div>
-
-          <div className="search">
-            <Search size={16}/>
-            <input placeholder="חיפוש לפי שם / טלפון / מספר כרטיסייה" value={query} onChange={e=>setQuery(e.target.value)} />
-          </div>
-
-          {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>{
-            const expired = isExpired(c.expires_at);
-            const expiringSoon = isExpiringSoon(c.expires_at);
-            const remaining = expired ? 0 : Math.max(0, c.total_minutes-c.used_minutes);
-            const ended = !expired && remaining <= 0;
-
-            return (
-              <button
-                className={`clientBtn ${selected?.id===c.id?'active':''}`}
-                key={c.id}
-                onClick={()=>setSelectedId(c.id)}
-                style={{
-                  border: expired ? '2px solid #ff4d4f' : ended ? '2px solid #777' : expiringSoon ? '2px solid #ffb84d' : undefined
-                }}
-              >
-                <b>{c.name}</b>
-                <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(remaining)}</small>
-                {expired && <div style={{color:'#ff4d4f',fontSize:'12px',marginTop:'4px'}}>פג תוקף</div>}
-                {ended && <div style={{color:'#777',fontSize:'12px',marginTop:'4px'}}>הכרטיסייה הסתיימה</div>}
-                {!expired && !ended && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
-              </button>
-            )
-          })}
         </div>
-      </Card>
 
-      {selected ? <Card>
-        <div className="content">
-          <div className="rowBetween">
-            <div>
-              <h2>{selected.name}</h2>
-              <p>כרטיסייה #{selected.card_number || '—'} · יתרה זמינה: {minutesToText(isExpired(selected.expires_at) ? 0 : selected.total_minutes-selected.used_minutes)}</p>
-              {isExpired(selected.expires_at) && <p style={{color:'#ff4d4f',fontWeight:'bold'}}>פג תוקף</p>}
-              {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)<=0 && <p style={{color:'#777',fontWeight:'bold'}}>הכרטיסייה הסתיימה</p>}
-              {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)>0 && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
-              {(selected.expired_unused_minutes || 0) > 0 && <p style={{color:'#888'}}>דקות שפגו ותועדו: {minutesToText(selected.expired_unused_minutes)}</p>}
-            </div>
+        <div className="search"><Search size={16}/><input placeholder="חיפוש לפי שם / טלפון / מספר כרטיסייה" value={query} onChange={e=>setQuery(e.target.value)} /></div>
 
-            <div className="actions">
-              <Button onClick={copyLink} variant="outline">
-                <Copy size={16}/> קישור
-              </Button>
+        {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>{
+          const expired = isExpired(c.expires_at);
+          const expiringSoon = isExpiringSoon(c.expires_at);
+          const remaining = expired ? 0 : Math.max(0, c.total_minutes-c.used_minutes);
+          const ended = !expired && remaining <= 0;
 
-              {showArchive ? (
-                <>
-                  <Button onClick={()=>restoreClient(selected.id)} variant="green">שחזר</Button>
-                  <Button onClick={()=>permanentlyDeleteClient(selected.id)} variant="danger">
-                    <Trash2 size={16}/> מחק סופית
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={deleteClient} variant="danger">
-                  <Trash2 size={16}/> מחק
-                </Button>
-              )}
-            </div>
+          return <button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)} style={{border: expired ? '2px solid #ff4d4f' : ended ? '2px solid #777' : expiringSoon ? '2px solid #ffb84d' : undefined}}>
+            <b>{c.name}</b>
+            <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(remaining)}</small>
+            {expired && <div style={{color:'#ff4d4f',fontSize:'12px',marginTop:'4px'}}>פג תוקף</div>}
+            {ended && <div style={{color:'#777',fontSize:'12px',marginTop:'4px'}}>הכרטיסייה הסתיימה</div>}
+            {!expired && !ended && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
+          </button>
+        })}
+      </div></Card>
+
+      {selected ? <Card><div className="content">
+        <div className="rowBetween">
+          <div>
+            <h2>{selected.name}</h2>
+            <p>כרטיסייה #{selected.card_number || '—'} · יתרה זמינה: {minutesToText(isExpired(selected.expires_at) ? 0 : selected.total_minutes-selected.used_minutes)}</p>
+            {isExpired(selected.expires_at) && <p style={{color:'#ff4d4f',fontWeight:'bold'}}>פג תוקף</p>}
+            {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)<=0 && <p style={{color:'#777',fontWeight:'bold'}}>הכרטיסייה הסתיימה</p>}
+            {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)>0 && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
           </div>
 
-          <div className="fields">
-            <label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label>
-            <label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label>
-            <label>מספר כרטיסייה<input type="number" value={selected.card_number||''} onChange={e=>updateClient({card_number:Number(e.target.value)})}/></label>
-            <label>סה״כ דקות שנרכשו<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
-            <label>דקות שפגו ותועדו<input type="number" value={selected.expired_unused_minutes||0} onChange={e=>updateClient({expired_unused_minutes:Number(e.target.value)})}/></label>
-            <label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label>
+          <div className="actions">
+            <Button onClick={copyLink} variant="outline"><Copy size={16}/> קישור</Button>
+            {showArchive ? <>
+              <Button onClick={()=>restoreClient(selected.id)} variant="green">שחזר</Button>
+              <Button onClick={()=>permanentlyDeleteClient(selected.id)} variant="danger"><Trash2 size={16}/> מחק סופית</Button>
+            </> : <Button onClick={deleteClient} variant="danger"><Trash2 size={16}/> מחק</Button>}
           </div>
-
-          <label>הערה<textarea value={selected.note||''} onChange={e=>updateClient({note:e.target.value})}/></label>
-
-          {!showArchive && (
-            <div className="charge">
-              <h3>טעינה / גריעת זמן</h3>
-
-              <Button onClick={quickCharge300} variant="green">
-                <Plus size={16}/> חידוש כרטיסייה 300 דקות
-              </Button>
-
-              <div className="chargeGrid">
-                <input type="number" value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/>
-                <input value={desc} onChange={e=>setDesc(e.target.value)}/>
-                <Button onClick={()=>addTx(-Number(minutes))} variant="danger"><Minus size={16}/> גרע</Button>
-                <Button onClick={()=>addTx(Number(minutes))} variant="green"><Plus size={16}/> טען</Button>
-              </div>
-            </div>
-          )}
-
-          <ClientCard card={selected} history={adminHistory} />
         </div>
-      </Card> : <Card><div className="content">{showArchive ? 'בחר כרטיסייה מהארכיון.' : 'בחר כרטיסייה פעילה מהרשימה.'}</div></Card>}
+
+        <div className="fields">
+          <label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label>
+          <label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label>
+          <label>מספר כרטיסייה<input type="number" value={selected.card_number||''} onChange={e=>updateClient({card_number:Number(e.target.value)})}/></label>
+          <label>דקות בכרטיסייה<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
+          <label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label>
+        </div>
+
+        <label>הערה<textarea value={selected.note||''} onChange={e=>updateClient({note:e.target.value})}/></label>
+
+        {!showArchive && <div className="charge">
+          <h3>טעינה / גריעת זמן</h3>
+          <Button onClick={quickCharge300} variant="green"><Plus size={16}/> חידוש כרטיסייה 300 דקות</Button>
+          <div className="chargeGrid">
+            <input type="number" value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/>
+            <input value={desc} onChange={e=>setDesc(e.target.value)}/>
+            <Button onClick={()=>addTx(-Number(minutes))} variant="danger"><Minus size={16}/> גרע</Button>
+            <Button onClick={()=>addTx(Number(minutes))} variant="green"><Plus size={16}/> טען</Button>
+          </div>
+        </div>}
+
+        <ClientCard card={selected} history={adminHistory} />
+      </div></Card> : <Card><div className="content">{showArchive ? 'בחר כרטיסייה מהארכיון.' : 'בחר כרטיסייה פעילה מהרשימה.'}</div></Card>}
     </div>
   </Shell>
 }
