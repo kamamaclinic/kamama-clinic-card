@@ -103,11 +103,19 @@ function ClientPage({token}){
     const {data,error}=await supabase.rpc('get_client_card',{token})
     if(error){ setErr(error.message); setLoading(false); return }
     if(!data || data.length===0){ setErr('הכרטיסייה לא נמצאה.'); setLoading(false); return }
+
     const found=data[0]; setCard(found)
 
-    const {data:fullClient}=await supabase.from('clients').select('id').eq('view_token',token).maybeSingle()
+    const {data:fullClient}=await supabase.from('clients').select('id,current_cycle_started_at').eq('view_token',token).maybeSingle()
+
     if(fullClient?.id){
-      const {data:tx}=await supabase.from('transactions').select('*').eq('client_id',fullClient.id).order('created_at',{ascending:false})
+      let query = supabase.from('transactions').select('*').eq('client_id',fullClient.id).order('created_at',{ascending:false})
+
+      if(fullClient.current_cycle_started_at){
+        query = query.gte('created_at', fullClient.current_cycle_started_at)
+      }
+
+      const {data:tx}=await query
       setHistory(tx||[])
     }
 
@@ -139,6 +147,7 @@ function Admin(){
   const [session,setSession]=useState(null);
   const [clients,setClients]=useState([]);
   const [archivedClients,setArchivedClients]=useState([]);
+  const [adminHistory,setAdminHistory]=useState([]);
   const [showArchive,setShowArchive]=useState(false);
   const [selectedId,setSelectedId]=useState(null);
   const [query,setQuery]=useState('');
@@ -179,7 +188,27 @@ function Admin(){
     } 
   }
 
+  async function loadAdminHistory(clientId){
+    if(!clientId){
+      setAdminHistory([]);
+      return;
+    }
+
+    const {data}=await supabase
+      .from('transactions')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at',{ascending:false});
+
+    setAdminHistory(data||[]);
+  }
+
   useEffect(()=>{check()},[])
+
+  useEffect(()=>{
+    if(session && selected?.id) loadAdminHistory(selected.id)
+    else setAdminHistory([])
+  },[session, selectedId])
 
   if(loading) return <Shell><div className="center">טוען...</div></Shell>
   if(!session) return <Login onDone={check}/>
@@ -193,7 +222,14 @@ function Admin(){
   }
 
   async function createClient(){
-    const {data}=await supabase.from('clients').insert({name:'מטופל חדש', used_minutes:0}).select().single();
+    const now = new Date().toISOString();
+
+    const {data}=await supabase
+      .from('clients')
+      .insert({name:'מטופל חדש', used_minutes:0, current_cycle_started_at: now})
+      .select()
+      .single();
+
     await load();
     if(data?.id) setSelectedId(data.id)
   }
@@ -246,12 +282,14 @@ function Admin(){
     await supabase.from('transactions').insert({client_id:selected.id, minutes:amount, description:desc});
     await supabase.from('clients').update({used_minutes:newUsed}).eq('id',selected.id);
     await load();
+    await loadAdminHistory(selected.id);
   }
 
   async function quickCharge300(){
     if(!selected) return;
 
     const expired = isExpired(selected.expires_at);
+    const now = new Date().toISOString();
     const currentRemaining = Math.max(0, selected.total_minutes - selected.used_minutes);
     const transferredRemaining = expired ? 0 : currentRemaining;
     const expiredUnusedTotal = (selected.expired_unused_minutes || 0) + (expired ? currentRemaining : 0);
@@ -271,7 +309,8 @@ function Admin(){
         used_minutes: 0,
         expires_at: oneYearFromToday(),
         purchased_at: new Date().toISOString().slice(0,10),
-        expired_unused_minutes: expiredUnusedTotal
+        expired_unused_minutes: expiredUnusedTotal,
+        current_cycle_started_at: now
       })
       .eq('id', selected.id);
 
@@ -284,6 +323,7 @@ function Admin(){
     });
 
     await load();
+    await loadAdminHistory(selected.id);
   }
 
   function copyLink(){
@@ -417,7 +457,7 @@ function Admin(){
             </div>
           )}
 
-          <ClientCard card={selected} history={[]} />
+          <ClientCard card={selected} history={adminHistory} />
         </div>
       </Card> : <Card><div className="content">{showArchive ? 'בחר כרטיסייה מהארכיון.' : 'בחר כרטיסייה פעילה מהרשימה.'}</div></Card>}
     </div>
