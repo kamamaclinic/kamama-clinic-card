@@ -725,25 +725,6 @@ async function updateGift(patch){
         </div>
       </div>
 
-<div className="actions">
-
-  <Button
-    onClick={()=>{
-      setShowArchive(!showArchive);
-      setSelectedId(null);
-    }}
-    variant="outline"
-  >
-    {showArchive ? 'חזרה לפעילים' : 'ארכיון'}
-  </Button>
-
-  {!showArchive && (
-    <Button onClick={createGift}>
-      <Plus size={16}/> חדש
-    </Button>
-  )}
-
-</div>
     </header>
 
     <div className="adminGrid">
@@ -751,6 +732,34 @@ async function updateGift(patch){
       <Card>
         <div className="content">
 
+<div className="rowBetween">
+
+  <h2>
+    {showArchive ? 'ארכיון שוברים' : 'שוברי מתנה'}
+  </h2>
+
+  <div className="actions">
+
+    <Button
+      onClick={()=>{
+        setShowArchive(!showArchive);
+        setSelectedId(null);
+      }}
+      variant="outline"
+    >
+      {showArchive ? 'חזרה לפעילים' : 'ארכיון'}
+    </Button>
+
+    {!showArchive && (
+      <Button onClick={createGift}>
+        <Plus size={16}/> חדש
+      </Button>
+    )}
+
+  </div>
+
+</div>
+          
           <div className="search">
             <Search size={16}/>
             <input
