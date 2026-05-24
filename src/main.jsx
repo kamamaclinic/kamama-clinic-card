@@ -58,6 +58,16 @@ function giftStatus(gift){
   return { label:'פעיל', color:'#059669', border:'#059669' };
 }
 
+function cardStatus(card){
+  const remaining = Math.max(0, Number(card.total_minutes||0) - Number(card.used_minutes||0));
+
+  if(remaining <= 0) return { label:'הכרטיסייה הסתיימה', color:'#777', border:'#777' };
+  if(isExpired(card.expires_at)) return { label:'פג תוקף', color:'#ff4d4f', border:'#ff4d4f' };
+  if(isExpiringSoon(card.expires_at)) return { label:'פג תוקף בקרוב', color:'#ffb84d', border:'#ffb84d' };
+
+  return { label:'פעיל', color:'#059669', border:'#059669' };
+}
+
 function giftLink(code){
   return `${window.location.origin}/gift/${code}`;
 }
@@ -551,17 +561,15 @@ async function updateClient(patch){
         <div className="search"><Search size={16}/><input placeholder="חיפוש לפי שם / טלפון / מספר כרטיסייה" value={query} onChange={e=>setQuery(e.target.value)} /></div>
 
         {displayedClients.filter(c=>`${c.name||''} ${c.phone||''} ${c.card_number||''}`.includes(query)).map(c=>{
-          const expired = isExpired(c.expires_at);
-          const expiringSoon = isExpiringSoon(c.expires_at);
-          const remaining = expired ? 0 : Math.max(0, c.total_minutes-c.used_minutes);
-          const ended = !expired && remaining <= 0;
+const remaining = Math.max(0, c.total_minutes-c.used_minutes);
+const status = cardStatus(c);
 
-          return <button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)} style={{border: expired ? '2px solid #ff4d4f' : ended ? '2px solid #777' : expiringSoon ? '2px solid #ffb84d' : undefined}}>
+          return <button className={`clientBtn ${selected?.id===c.id?'active':''}`} key={c.id} onClick={()=>setSelectedId(c.id)} style={{border:`2px solid ${status.border}`}}>
             <b>{c.name}</b>
             <small>כרטיסייה #{c.card_number || '—'} · נותרו {minutesToText(remaining)}</small>
-            {expired && <div style={{color:'#ff4d4f',fontSize:'12px',marginTop:'4px'}}>פג תוקף</div>}
-            {ended && <div style={{color:'#777',fontSize:'12px',marginTop:'4px'}}>הכרטיסייה הסתיימה</div>}
-            {!expired && !ended && expiringSoon && <div style={{color:'#ffb84d',fontSize:'12px',marginTop:'4px'}}>פג תוקף בקרוב</div>}
+<div style={{color:status.color,fontSize:'12px',marginTop:'4px'}}>
+  {status.label}
+</div>
           </button>
         })}
       </div></Card>
@@ -571,9 +579,15 @@ async function updateClient(patch){
           <div>
             <h2>{selected.name}</h2>
             <p>כרטיסייה #{selected.card_number || '—'} · יתרה זמינה: {minutesToText(isExpired(selected.expires_at) ? 0 : selected.total_minutes-selected.used_minutes)}</p>
-            {isExpired(selected.expires_at) && <p style={{color:'#ff4d4f',fontWeight:'bold'}}>פג תוקף</p>}
-            {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)<=0 && <p style={{color:'#777',fontWeight:'bold'}}>הכרטיסייה הסתיימה</p>}
-            {!isExpired(selected.expires_at) && (selected.total_minutes-selected.used_minutes)>0 && isExpiringSoon(selected.expires_at) && <p style={{color:'#ffb84d',fontWeight:'bold'}}>פג תוקף בקרוב</p>}
+{(() => {
+  const status = cardStatus(selected);
+
+  return (
+    <p style={{color:status.color,fontWeight:'bold'}}>
+      {status.label}
+    </p>
+  );
+})()}
           </div>
 
           <div className="actions">
