@@ -172,7 +172,6 @@ function ClientPage({token}){
 
 const {data:tx}=await supabase.rpc('get_client_transactions',{token})
 setHistory(tx||[])
-    }
 
     setLoading(false)
   }
