@@ -170,13 +170,8 @@ function ClientPage({token}){
 
     const found=data[0]; setCard(found)
 
-    const {data:fullClient}=await supabase.from('clients').select('id,current_cycle_started_at').eq('view_token',token).maybeSingle()
-
-    if(fullClient?.id){
-      let query = supabase.from('transactions').select('*').eq('client_id',fullClient.id).order('created_at',{ascending:false})
-      if(fullClient.current_cycle_started_at) query = query.gte('created_at', fullClient.current_cycle_started_at)
-      const {data:tx}=await query
-      setHistory(tx||[])
+const {data:tx}=await supabase.rpc('get_client_transactions',{token})
+setHistory(tx||[])
     }
 
     setLoading(false)
