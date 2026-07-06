@@ -134,6 +134,26 @@ function ClientCard({card, history=[]}){
         </div>
         <div className="progress"><div style={{width:`${progressWidth}%`}} /></div>
 
+<div className="infoBox">
+  <b>📅 קביעת טיפול</b>
+
+  <p>
+    רוצה לקבוע טיפול חדש? לחץ על הכפתור כדי לראות את הזמנים הפנויים.
+  </p>
+
+  <Button
+    variant="green"
+    onClick={() =>
+      window.open(
+        "https://kamama-booking.vercel.app/",
+        "_blank"
+      )
+    }
+  >
+    📅 קביעת טיפול
+  </Button>
+</div>
+        
         <div className="infoBox">
           <b>פרטים</b>
           <p>נוסף בתאריך: {card.purchased_at || '—'}</p>
