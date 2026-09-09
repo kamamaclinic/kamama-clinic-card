@@ -98,9 +98,9 @@ function Card({children, className=''}){ return <div className={`card ${classNam
 function Button({children,onClick,type='button',variant='',disabled=false}){ return <button type={type} disabled={disabled} onClick={onClick} className={`btn ${variant}`}>{children}</button> }
 function Stat({icon:Icon,label,value}){ return <div className="stat"><div className="statLabel"><Icon size={16}/>{label}</div><div className="statValue">{value}</div></div> }
 
-function ClientCard({card, history=[]}){
+function ClientCard({card, history=[], historyError='', onRetryHistory}){
   const expired = isExpired(card.expires_at)
-  const expiringSoon = isExpiringSoon(card.expires_at)
+  const status = cardStatus(card)
   const remaining = expired ? 0 : Math.max(0, card.total_minutes - card.used_minutes)
   const percent = Math.round((remaining / CARD_SIZE) * 100)
   const progressWidth = Math.max(0, Math.min(100, percent))
@@ -114,10 +114,10 @@ function ClientCard({card, history=[]}){
       </div>
 
       <div className="content">
-        {(expired || expiringSoon) && (
-          <div className="infoBox" style={{border: expired ? '2px solid #ff4d4f' : '2px solid #ffb84d'}}>
-            <b style={{color: expired ? '#ff4d4f' : '#ffb84d'}}>
-              {expired ? 'הכרטיסייה פגה תוקף' : 'הכרטיסייה עומדת לפוג בקרוב'}
+        {(
+          <div className="infoBox" style={{border:`2px solid ${status.border}`}}>
+            <b style={{color:status.color}}>
+              {status.label}
             </b>
           </div>
         )}
@@ -162,7 +162,7 @@ function ClientCard({card, history=[]}){
 
         <h2>היסטוריית פעולות</h2>
         <div className="history">
-          {history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=>
+          {historyError ? <div role="alert"><p className="error">{historyError}</p>{onRetryHistory && <Button onClick={onRetryHistory}>נסה שוב</Button>}</div> : history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=>
             <div className="histRow" key={x.id}>
               <div>
                 <b>{x.description || 'פעולה'}</b>
@@ -181,26 +181,33 @@ function ClientCard({card, history=[]}){
 
 function ClientPage({token}){
   const [card,setCard]=useState(null); const [history,setHistory]=useState([]); const [loading,setLoading]=useState(true); const [err,setErr]=useState('')
+  const [historyError,setHistoryError]=useState('')
 
   async function load(){
-    setLoading(true); setErr('')
+    setLoading(true); setErr(''); setHistoryError(''); setHistory([])
+    try {
     const {data,error}=await supabase.rpc('get_client_card',{token})
     if(error){ setErr(error.message); setLoading(false); return }
     if(!data || data.length===0){ setErr('הכרטיסייה לא נמצאה.'); setLoading(false); return }
 
     const found=data[0]; setCard(found)
 
-const {data:tx}=await supabase.rpc('get_client_transactions',{token})
-setHistory(tx||[])
+    const {data:tx,error:txError}=await supabase.rpc('get_client_transactions',{token})
+    if(txError) setHistoryError('לא ניתן לטעון את היסטוריית הפעולות כרגע. נסה שוב.')
+    else setHistory(tx||[])
 
-    setLoading(false)
+    } catch {
+      setErr('לא ניתן לטעון את הכרטיסייה כרגע. נסה לרענן את הדף.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(()=>{load()},[token])
 
   if(loading) return <Shell><div className="center">טוען כרטיסייה...</div></Shell>
   if(err) return <Shell><Card><div className="content"><h1>אופס</h1><p>{err}</p></div></Card></Shell>
-  return <Shell><ClientCard card={card} history={history}/></Shell>
+  return <Shell><ClientCard card={card} history={history} historyError={historyError} onRetryHistory={load}/></Shell>
 }
 
 function ClientGiftPage({code}){
