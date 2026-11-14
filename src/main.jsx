@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { supabase } from './supabaseClient'
-import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2, Gift, MessageCircle, Printer, CalendarClock, Phone, Globe, MapPin, CheckCircle2 } from 'lucide-react'
+import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2, Gift, MessageCircle, Printer, CalendarClock, Phone, Globe, MapPin, CheckCircle2, Bell, Mail, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './styles.css'
 
@@ -72,6 +72,24 @@ function giftLink(code){
   return `${window.location.origin}/gift/${code}`;
 }
 
+function validEmail(value){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+async function sendAdminNotification(session, event, payload){
+  const response = await fetch('/api/send-card-notification', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      authorization:`Bearer ${session?.access_token || ''}`
+    },
+    body:JSON.stringify({event, ...payload})
+  });
+  const data = await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(data.error || 'לא ניתן לשלוח הודעה כרגע.');
+  return data;
+}
+
 function whatsappGiftMessage(gift){
   const from = gift.from_name ? `\nהמתנה נשלחה באהבה מאת ${gift.from_name}.` : '';
   return `שלום ${gift.recipient_name || ''} 🌿
@@ -98,12 +116,30 @@ function Card({children, className=''}){ return <div className={`card ${classNam
 function Button({children,onClick,type='button',variant='',disabled=false}){ return <button type={type} disabled={disabled} onClick={onClick} className={`btn ${variant}`}>{children}</button> }
 function Stat({icon:Icon,label,value}){ return <div className="stat"><div className="statLabel"><Icon size={16}/>{label}</div><div className="statValue">{value}</div></div> }
 
-function ClientCard({card, history=[], historyError='', onRetryHistory}){
+function ClientCard({card, history=[], historyError='', onRetryHistory, emailEditor=false, onSaveEmail}){
   const expired = isExpired(card.expires_at)
   const status = cardStatus(card)
   const remaining = expired ? 0 : Math.max(0, card.total_minutes - card.used_minutes)
   const percent = Math.round((remaining / CARD_SIZE) * 100)
   const progressWidth = Math.max(0, Math.min(100, percent))
+  const [email,setEmail] = useState(card.email || '')
+  const [emailStatus,setEmailStatus] = useState('')
+
+  useEffect(()=>{ setEmail(card.email || ''); setEmailStatus('') },[card.id, card.email])
+
+  async function saveEmail(){
+    const cleanEmail = email.trim();
+    if(cleanEmail && !validEmail(cleanEmail)){
+      setEmailStatus('יש להזין כתובת אימייל תקינה.');
+      return;
+    }
+    try{
+      await onSaveEmail?.(cleanEmail);
+      setEmailStatus(cleanEmail ? 'כתובת האימייל נשמרה. מעתה יישלחו אליה עדכונים ותזכורות.' : 'כתובת האימייל הוסרה.');
+    }catch(error){
+      setEmailStatus(error.message || 'לא ניתן לשמור את כתובת האימייל כרגע.');
+    }
+  }
 
   return <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="clientWrap">
     <Card>
@@ -160,6 +196,16 @@ function ClientCard({card, history=[], historyError='', onRetryHistory}){
           <p>הערה: {card.note || '—'}</p>
         </div>
 
+        {emailEditor && <div className="infoBox">
+          <b><Mail size={16}/> עדכונים למייל</b>
+          <p>אפשר להשאיר ריק. אם תוזן כתובת אימייל, יישלחו אליה עדכונים ותזכורות לכרטיסייה.</p>
+          <div className="emailEditor">
+            <input type="email" dir="ltr" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
+            <Button onClick={saveEmail} variant="green">שמירה</Button>
+          </div>
+          {emailStatus && <small className={emailStatus.includes('תקינה') || emailStatus.includes('לא ניתן') ? 'error' : 'hint'}>{emailStatus}</small>}
+        </div>}
+
         <h2>היסטוריית פעולות</h2>
         <div className="history">
           {historyError ? <div role="alert"><p className="error">{historyError}</p>{onRetryHistory && <Button onClick={onRetryHistory}>נסה שוב</Button>}</div> : history.length === 0 ? <div className="empty">אין עדיין פעולות בכרטיסייה.</div> : history.map((x)=>
@@ -190,7 +236,9 @@ function ClientPage({token}){
     if(error){ setErr(error.message); setLoading(false); return }
     if(!data || data.length===0){ setErr('הכרטיסייה לא נמצאה.'); setLoading(false); return }
 
-    const found=data[0]; setCard(found)
+    const found=data[0]
+    const {data:emailData} = await supabase.rpc('get_client_email_by_token',{p_token:token})
+    setCard({...found, email:emailData || found.email || ''})
 
     const {data:tx,error:txError}=await supabase.rpc('get_client_transactions',{token})
     if(txError) setHistoryError('לא ניתן לטעון את היסטוריית הפעולות כרגע. נסה שוב.')
@@ -207,7 +255,13 @@ function ClientPage({token}){
 
   if(loading) return <Shell><div className="center">טוען כרטיסייה...</div></Shell>
   if(err) return <Shell><Card><div className="content"><h1>אופס</h1><p>{err}</p></div></Card></Shell>
-  return <Shell><ClientCard card={card} history={history} historyError={historyError} onRetryHistory={load}/></Shell>
+  async function saveEmail(email){
+    const {error} = await supabase.rpc('update_client_email_by_token',{p_token:token,p_email:email})
+    if(error) throw new Error('לא ניתן לשמור את כתובת האימייל כרגע.')
+    setCard(prev=>({...prev,email}))
+  }
+
+  return <Shell><ClientCard card={card} history={history} historyError={historyError} onRetryHistory={load} emailEditor onSaveEmail={saveEmail}/></Shell>
 }
 
 function ClientGiftPage({code}){
@@ -377,6 +431,51 @@ function Login({onDone}){
   return <Shell><div className="clientWrap"><Card><div className="hero"><div className="pill"><Lock size={16}/> כניסת מנהל</div><h1>Kamama Clinic Card</h1><p>כניסה מאובטחת לניהול כרטיסיות.</p></div><form onSubmit={submit} className="content form"><input placeholder="אימייל" value={email} onChange={e=>setEmail(e.target.value)} /><input placeholder="סיסמה" type="password" value={password} onChange={e=>setPassword(e.target.value)} />{err && <p className="error">{err}</p>}<Button type="submit" disabled={loading}>{loading?'מתחבר...':'כניסה'}</Button></form></Card></div></Shell>
 }
 
+function NotificationSettings(){
+  const defaults = {
+    id:'main', card_half_year_days:183, card_expiry_days:30, gift_expiry_days:30,
+    notify_card_purchase:true, notify_gift_purchase:true, notify_card_transactions:false
+  };
+  const [settings,setSettings] = useState(defaults);
+  const [status,setStatus] = useState('');
+
+  useEffect(()=>{
+    supabase.from('notification_settings').select('*').eq('id','main').maybeSingle()
+      .then(({data,error})=>{
+        if(error) setStatus('לא ניתן לטעון את הגדרות ההודעות כרגע.');
+        else if(data) setSettings({...defaults,...data});
+      });
+  },[]);
+
+  async function save(){
+    setStatus('שומר...');
+    const payload = {
+      ...settings,
+      card_half_year_days:Math.max(1,Number(settings.card_half_year_days)||183),
+      card_expiry_days:Math.max(1,Number(settings.card_expiry_days)||30),
+      gift_expiry_days:Math.max(1,Number(settings.gift_expiry_days)||30),
+      updated_at:new Date().toISOString()
+    };
+    const {error} = await supabase.from('notification_settings').upsert(payload);
+    setStatus(error ? 'לא ניתן לשמור את ההגדרות כרגע.' : 'ההגדרות נשמרו.');
+  }
+
+  return <Card className="notificationSettings"><div className="content">
+    <div className="rowBetween"><div><h2><Bell size={19}/> הודעות ותזכורות</h2><p>הודעות נשלחות רק כאשר קיימת כתובת אימייל בכרטיסייה או בשובר.</p></div></div>
+    <div className="fields">
+      <label>תזכורת חצי שנה לפני תוקף כרטיסייה<input type="number" min="1" value={settings.card_half_year_days} onChange={e=>setSettings({...settings,card_half_year_days:e.target.value})}/></label>
+      <label>תזכורת לפני תוקף כרטיסייה<input type="number" min="1" value={settings.card_expiry_days} onChange={e=>setSettings({...settings,card_expiry_days:e.target.value})}/></label>
+      <label>תזכורת לפני תוקף שובר מתנה<input type="number" min="1" value={settings.gift_expiry_days} onChange={e=>setSettings({...settings,gift_expiry_days:e.target.value})}/></label>
+    </div>
+    <div className="notificationToggles">
+      <label><input type="checkbox" checked={Boolean(settings.notify_card_purchase)} onChange={e=>setSettings({...settings,notify_card_purchase:e.target.checked})}/> שליחת מייל בעת חידוש או רכישת כרטיסייה</label>
+      <label><input type="checkbox" checked={Boolean(settings.notify_gift_purchase)} onChange={e=>setSettings({...settings,notify_gift_purchase:e.target.checked})}/> שליחת מייל רכישה עבור שובר מתנה</label>
+      <label><input type="checkbox" checked={Boolean(settings.notify_card_transactions)} onChange={e=>setSettings({...settings,notify_card_transactions:e.target.checked})}/> שליחת מייל על כל טעינה או גריעת זמן בכרטיסייה</label>
+    </div>
+    <div className="actions"><Button onClick={save} variant="green"><Settings size={16}/> שמירת הגדרות</Button>{status && <small className="hint">{status}</small>}</div>
+  </div></Card>
+}
+
 function Admin(){
   const [session,setSession]=useState(null);
   const [clients,setClients]=useState([]);
@@ -385,9 +484,11 @@ function Admin(){
   const [showArchive,setShowArchive]=useState(false);
   const [selectedId,setSelectedId]=useState(null);
   const [query,setQuery]=useState('');
-  const [minutes,setMinutes]=useState(60);
+  const [minutes,setMinutes]=useState('60');
   const [desc,setDesc]=useState('טיפול');
   const [loading,setLoading]=useState(true);
+  const [showNotifications,setShowNotifications]=useState(false);
+  const [emailNotice,setEmailNotice]=useState('');
 
   const selected=useMemo(
     ()=>[...clients, ...archivedClients].find(c=>c.id===selectedId) || null,
@@ -425,6 +526,18 @@ function Admin(){
   if(!session) return <Login onDone={check}/>
 
   async function signOut(){ await supabase.auth.signOut(); setSession(null) }
+
+  async function notify(event, payload){
+    try{
+      const result = await sendAdminNotification(session,event,payload);
+      if(result.status === 'sent') setEmailNotice('הודעת המייל נשלחה.');
+      else if(result.reason === 'missing_email') setEmailNotice('לא נשלחה הודעת מייל: לא הוגדרה כתובת אימייל.');
+      else if(result.reason === 'disabled') setEmailNotice('שליחת הודעות מסוג זה כבויה בהגדרות.');
+      else setEmailNotice('הודעה מסוג זה כבר נשלחה.');
+    }catch(error){
+      setEmailNotice(error.message || 'לא ניתן לשלוח הודעת מייל כרגע.');
+    }
+  }
 
 async function updateClient(patch){
   if(!selected) return;
@@ -483,8 +596,9 @@ async function updateClient(patch){
   async function addTx(amount){
     if(!selected) return;
     const newUsed = amount < 0 ? Math.min(selected.total_minutes, selected.used_minutes + Math.abs(amount)) : Math.max(0, selected.used_minutes - amount);
-    await supabase.from('transactions').insert({client_id:selected.id, minutes:amount, description:desc});
+    const {data:transaction} = await supabase.from('transactions').insert({client_id:selected.id, minutes:amount, description:desc}).select().single();
     await supabase.from('clients').update({used_minutes:newUsed}).eq('id',selected.id);
+    if(transaction?.id) await notify('card-transaction',{id:selected.id,transactionId:transaction.id});
     await load();
     await loadAdminHistory(selected.id);
   }
@@ -532,6 +646,8 @@ async function updateClient(patch){
       created_at: now
     });
 
+    await notify('card-purchase',{id:selected.id});
+
     await load();
     await loadAdminHistory(selected.id);
   }
@@ -562,11 +678,17 @@ async function updateClient(patch){
 <Button onClick={()=>window.location.href='/admin/gifts'} variant="outline">
   שוברי מתנה
 </Button>
+<Button onClick={()=>setShowNotifications(!showNotifications)} variant="outline">
+  <Bell size={16}/> הודעות
+</Button>
     </div>
   </div>
 
   <Button onClick={signOut} variant="outline"><LogOut size={16}/> יציאה</Button>
 </header>
+
+    {showNotifications && <NotificationSettings />}
+    {emailNotice && <div className="notice">{emailNotice}</div>}
 
     <div className="adminGrid">
       <Card><div className="content">
@@ -623,6 +745,7 @@ const status = cardStatus(c);
         <div className="fields">
           <label>שם<input value={selected.name||''} onChange={e=>updateClient({name:e.target.value})}/></label>
           <label>טלפון<input value={selected.phone||''} onChange={e=>updateClient({phone:e.target.value})}/></label>
+          <label>אימייל לעדכונים<input type="email" dir="ltr" value={selected.email||''} onChange={e=>updateClient({email:e.target.value})}/></label>
           <label>מספר כרטיסייה<input type="number" value={selected.card_number||''} onChange={e=>updateClient({card_number:Number(e.target.value)})}/></label>
           <label>דקות בכרטיסייה<input type="number" value={selected.total_minutes||0} onChange={e=>updateClient({total_minutes:Number(e.target.value)})}/></label>
           <label>תוקף<input type="date" value={selected.expires_at||''} onChange={e=>updateClient({expires_at:e.target.value})}/></label>
@@ -634,7 +757,7 @@ const status = cardStatus(c);
           <h3>טעינה / גריעת זמן</h3>
           <Button onClick={quickCharge300} variant="green"><Plus size={16}/> חידוש כרטיסייה 300 דקות</Button>
           <div className="chargeGrid">
-            <input type="number" value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/>
+            <input type="number" min="1" value={minutes} onChange={e=>setMinutes(e.target.value.replace(/^0+(?=\d)/,''))}/>
             <input value={desc} onChange={e=>setDesc(e.target.value)}/>
             <Button onClick={()=>addTx(-Number(minutes))} variant="danger"><Minus size={16}/> גרע</Button>
             <Button onClick={()=>addTx(Number(minutes))} variant="green"><Plus size={16}/> טען</Button>
@@ -654,6 +777,7 @@ const [selectedId,setSelectedId]=useState(null);
 const [query,setQuery]=useState('');
 const [showArchive,setShowArchive]=useState(false);
 const [loading,setLoading]=useState(true);
+const [emailNotice,setEmailNotice]=useState('');
 
   const selected = gifts.find(g=>g.id===selectedId) || null;
 
@@ -756,6 +880,19 @@ async function signOut(){
   setSession(null);
 }
 
+async function sendGiftPurchase(){
+  if(!selected) return;
+  try{
+    const result = await sendAdminNotification(session,'gift-purchase',{id:selected.id});
+    if(result.status === 'sent') setEmailNotice('הודעת רכישת השובר נשלחה.');
+    else if(result.reason === 'missing_email') setEmailNotice('לא נשלחה הודעה: יש להוסיף אימייל למקבל המתנה.');
+    else if(result.reason === 'disabled') setEmailNotice('שליחת הודעות רכישה לשוברים כבויה בהגדרות.');
+    else setEmailNotice('הודעת רכישת השובר כבר נשלחה.');
+  }catch(error){
+    setEmailNotice(error.message || 'לא ניתן לשלוח הודעה כרגע.');
+  }
+}
+
 if(loading){
   return <Shell><div className="center">טוען שוברים...</div></Shell>
 }
@@ -790,6 +927,8 @@ if(!session){
 </Button>
 
 </header>
+
+    {emailNotice && <div className="notice">{emailNotice}</div>}
 
     <div className="adminGrid">
 
@@ -914,6 +1053,19 @@ if(!session){
               </label>
 
               <label>
+                אימייל למקבל המתנה
+                <input
+                  type="email"
+                  dir="ltr"
+                  placeholder="name@example.com"
+                  value={selected.recipient_email||''}
+                  onChange={e=>updateGift({
+                    recipient_email:e.target.value
+                  })}
+                />
+              </label>
+
+              <label>
                 ממי המתנה
                 <input
                   value={selected.from_name||''}
@@ -968,6 +1120,9 @@ if(!session){
             </label>
 
             <div className="actions" style={{marginTop:'16px'}}>
+              <Button onClick={sendGiftPurchase} variant="green">
+                <Mail size={16}/> שליחת הודעת רכישה
+              </Button>
               <Button
                 variant={selected.redeemed ? 'outline' : 'green'}
                 onClick={()=>updateGift({
