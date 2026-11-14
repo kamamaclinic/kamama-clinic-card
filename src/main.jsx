@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { supabase } from './supabaseClient'
-import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2, Gift, MessageCircle, Printer, CalendarClock, Phone, Globe, MapPin, CheckCircle2, Bell, Mail, Settings } from 'lucide-react'
+import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2, Gift, MessageCircle, Printer, CalendarClock, Phone, Globe, MapPin, CheckCircle2, Bell, Mail, Pencil, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './styles.css'
 
@@ -124,8 +124,13 @@ function ClientCard({card, history=[], historyError='', onRetryHistory, emailEdi
   const progressWidth = Math.max(0, Math.min(100, percent))
   const [email,setEmail] = useState(card.email || '')
   const [emailStatus,setEmailStatus] = useState('')
+  const [editingEmail,setEditingEmail] = useState(!card.email)
 
-  useEffect(()=>{ setEmail(card.email || ''); setEmailStatus('') },[card.id, card.email])
+  useEffect(()=>{
+    setEmail(card.email || '');
+    setEmailStatus('');
+    setEditingEmail(!card.email);
+  },[card.id, card.email])
 
   async function saveEmail(){
     const cleanEmail = email.trim();
@@ -136,6 +141,7 @@ function ClientCard({card, history=[], historyError='', onRetryHistory, emailEdi
     try{
       await onSaveEmail?.(cleanEmail);
       setEmailStatus(cleanEmail ? 'כתובת האימייל נשמרה. מעתה יישלחו אליה עדכונים ותזכורות.' : 'כתובת האימייל הוסרה.');
+      setEditingEmail(!cleanEmail);
     }catch(error){
       setEmailStatus(error.message || 'לא ניתן לשמור את כתובת האימייל כרגע.');
     }
@@ -198,11 +204,17 @@ function ClientCard({card, history=[], historyError='', onRetryHistory, emailEdi
 
         {emailEditor && <div className="infoBox">
           <b><Mail size={16}/> עדכונים למייל</b>
-          <p>אפשר להשאיר ריק. אם תוזן כתובת אימייל, יישלחו אליה עדכונים ותזכורות לכרטיסייה.</p>
-          <div className="emailEditor">
-            <input type="email" dir="ltr" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
-            <Button onClick={saveEmail} variant="green">שמירה</Button>
-          </div>
+          {editingEmail ? <>
+            <p>אפשר להשאיר ריק. אם תוזן כתובת אימייל, יישלחו אליה עדכונים ותזכורות לכרטיסייה.</p>
+            <div className="emailEditor">
+              <input type="email" dir="ltr" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
+              <Button onClick={saveEmail} variant="green">שמירה</Button>
+            </div>
+            {card.email && <Button onClick={()=>{ setEmail(card.email); setEditingEmail(false); setEmailStatus('') }} variant="outline">ביטול</Button>}
+          </> : <div className="savedEmailState">
+            <p>כתובת אימייל לעדכונים נשמרה בכרטיסייה.</p>
+            <Button onClick={()=>setEditingEmail(true)} variant="outline"><Pencil size={16}/> עריכת אימייל</Button>
+          </div>}
           {emailStatus && <small className={emailStatus.includes('תקינה') || emailStatus.includes('לא ניתן') ? 'error' : 'hint'}>{emailStatus}</small>}
         </div>}
 

@@ -34,14 +34,34 @@ create table if not exists public.notification_log (
 alter table public.notification_settings enable row level security;
 alter table public.notification_log enable row level security;
 
-drop policy if exists "Authenticated users manage notification settings" on public.notification_settings;
-create policy "Authenticated users manage notification settings"
-on public.notification_settings for all to authenticated
-using (true) with check (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'notification_settings'
+      and policyname = 'Authenticated users manage notification settings'
+  ) then
+    create policy "Authenticated users manage notification settings"
+    on public.notification_settings for all to authenticated
+    using (true) with check (true);
+  end if;
+end;
+$$;
 
-drop policy if exists "Authenticated users read notification log" on public.notification_log;
-create policy "Authenticated users read notification log"
-on public.notification_log for select to authenticated using (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'notification_log'
+      and policyname = 'Authenticated users read notification log'
+  ) then
+    create policy "Authenticated users read notification log"
+    on public.notification_log for select to authenticated using (true);
+  end if;
+end;
+$$;
 
 create or replace function public.update_client_email_by_token(p_token text, p_email text)
 returns table (id uuid, email text)

@@ -100,7 +100,7 @@ function giftLink(gift) {
   return `${appUrl.replace(/\/$/, "")}/gift/${encodeURIComponent(gift.code)}`;
 }
 
-function emailHtml({ eyebrow, title, intro, details, linkLabel, link }) {
+function emailHtml({ eyebrow, title, intro, details, linkLabel, link, secondaryLinkLabel = "", secondaryLink = "" }) {
   const lines = details.filter(Boolean).map(item => `<li style="margin:0 0 7px;">${escapeHtml(item)}</li>`).join("");
   return `<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -115,6 +115,7 @@ function emailHtml({ eyebrow, title, intro, details, linkLabel, link }) {
       <ul style="padding-right:20px;margin:18px 0 24px;">${lines}</ul>
       <div style="text-align:center;margin:26px 0 20px;">
         <a href="${escapeHtml(link)}" style="display:inline-block;background:#177d6b;color:#fff;text-decoration:none;border-radius:7px;padding:12px 20px;font-weight:700;">${escapeHtml(linkLabel)}</a>
+        ${secondaryLink && secondaryLinkLabel ? `<div style="margin-top:12px;"><a href="${escapeHtml(secondaryLink)}" style="display:inline-block;color:#176b5d;text-decoration:none;border:1px solid #9fcfc4;border-radius:7px;padding:10px 18px;font-weight:700;">${escapeHtml(secondaryLinkLabel)}</a></div>` : ""}
       </div>
       <p style="margin:26px 0 0;color:#64706b;font-size:13px;">Kamama Clinic</p>
     </div>
@@ -139,7 +140,7 @@ function cardMail(card, type, transaction) {
   ];
   return {
     subject: `${title} | Kamama Clinic`,
-    html: emailHtml({ eyebrow, title, intro, details, linkLabel: "לקביעת טיפול", link: bookingUrl }),
+    html: emailHtml({ eyebrow, title, intro, details, linkLabel: "לקביעת טיפול", link: bookingUrl, secondaryLinkLabel: "לכרטיסייה האישית שלך", secondaryLink: cardLink(card) }),
     text: `${title}\n\n${intro}\n${details.filter(Boolean).join("\n")}\n\nלקביעת טיפול: ${bookingUrl}\n\nכרטיסייה: ${cardLink(card)}`
   };
 }
@@ -158,7 +159,7 @@ function giftMail(gift, type) {
   ];
   return {
     subject: `${title} | Kamama Clinic`,
-    html: emailHtml({ eyebrow: "שובר מתנה", title, intro, details, linkLabel: "לקביעת טיפול", link: bookingUrl }),
+    html: emailHtml({ eyebrow: "שובר מתנה", title, intro, details, linkLabel: "לקביעת טיפול", link: bookingUrl, secondaryLinkLabel: "לצפייה בשובר", secondaryLink: giftLink(gift) }),
     text: `${title}\n\n${intro}\n${details.filter(Boolean).join("\n")}\n\nלקביעת טיפול: ${bookingUrl}\n\nלצפייה בשובר: ${giftLink(gift)}`
   };
 }
