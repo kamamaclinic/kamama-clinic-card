@@ -43,11 +43,8 @@ function addOneYear(date){
 }
 
 function generateGiftCode(){
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'GIFT-';
-  for(let i=0; i<6; i++){
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const code = 'GIFT-' + Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('').toUpperCase();
   return code;
 }
 
@@ -284,11 +281,10 @@ function ClientGiftPage({code}){
   async function load(){
     setLoading(true);
 
-    const {data,error}=await supabase
-      .from('gift_vouchers')
-      .select('*')
-      .eq('code',code)
-      .maybeSingle();
+    const response = await fetch(`/api/gift?code=${encodeURIComponent(code)}`, {cache:'no-store'}).catch(()=>null);
+    const payload = response ? await response.json().catch(()=>({})) : {};
+    const data = payload.gift;
+    const error = response?.ok ? null : {message:'לא ניתן לטעון את השובר כרגע. נסו שוב.'};
 
     if(error){
       setErr(error.message);
@@ -1187,3 +1183,4 @@ if(route.section === 'gift' && route.token){
   return <Admin/>
 }
 createRoot(document.getElementById('root')).render(<App />)
+
