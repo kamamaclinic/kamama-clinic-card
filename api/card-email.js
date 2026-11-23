@@ -218,13 +218,15 @@ async function requireAdmin(request) {
   const response = await fetch(`${url}/auth/v1/user`, {
     headers: { apikey: publicKey, authorization: `Bearer ${token}` }
   });
-  return response.ok;
+  if (!response.ok) return false;
+  const user = await response.json().catch(() => ({}));
+  return user.id === "3903aa50-e4db-4165-b673-3a61803f13c7";
 }
 
 function cronAuthorized(request) {
   const secret = clean(process.env.CRON_SECRET);
-  if (!secret) return true;
-  return clean(request.headers.authorization) === `Bearer ${secret}` || clean(request.query?.secret) === secret || clean(request.headers["x-vercel-cron"]) === "1";
+  if (!secret) return false;
+  return clean(request.headers.authorization) === `Bearer ${secret}` || clean(request.query?.secret) === secret;
 }
 
 function json(response, status, body) {
@@ -244,3 +246,4 @@ module.exports = {
   sendOnce,
   validEmail
 };
+
