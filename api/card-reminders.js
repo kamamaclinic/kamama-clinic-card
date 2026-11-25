@@ -1,3 +1,4 @@
+const { inactivityReminder } = require("../lib/card-inactivity");
 const {
   cardMail,
   cardRemaining,
@@ -60,6 +61,23 @@ module.exports = async function handler(request, response) {
           message: cardMail(card, "expiry")
         });
         results.push({ type: "card-expiry", id: card.id, ...result });
+      }
+    }
+
+    if (settings.notify_card_inactivity) {
+      for (const card of cards || []) {
+        const remaining=cardRemaining(card);
+        if (!validEmail(card.email) || !card.expires_at || daysUntil(card.expires_at)<0 || remaining<=0) continue;
+        const transactions=await rest("transactions",
+          "?client_id=eq."+encodeURIComponent(card.id)+
+          "&minutes=lt.0&select=id,client_id,minutes,created_at&order=created_at.desc,id.desc&limit=1");
+        const due=inactivityReminder(card,transactions?.[0],settings.card_inactivity_months);
+        if (!due) continue;
+        const result=await sendOnce({
+          resourceType:"card",resourceId:card.id,notificationType:"inactivity",
+          dedupeKey:due.dedupeKey,recipient:card.email,message:cardMail(card,"inactivity")
+        });
+        results.push({type:"card-inactivity",id:card.id,...result});
       }
     }
 
