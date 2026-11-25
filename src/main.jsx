@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import { Clock, Eye, Lock, LogOut, Minus, Plus, Search, ShieldCheck, Copy, Trash2, Gift, MessageCircle, Printer, CalendarClock, Phone, Globe, MapPin, CheckCircle2, Bell, Mail, Pencil, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './styles.css'
+import { cardNotificationNotice, isTransientCardNotice } from './notification-notice.mjs'
 
 const CARD_SIZE = 300
 
@@ -442,7 +443,8 @@ function Login({onDone}){
 function NotificationSettings(){
   const defaults = {
     id:'main', card_half_year_days:183, card_expiry_days:30, gift_expiry_days:30,
-    notify_card_purchase:true, notify_gift_purchase:true, notify_card_transactions:false
+    notify_card_purchase:true, notify_gift_purchase:true, notify_card_transactions:false,
+    notify_card_inactivity:false, card_inactivity_months:2
   };
   const [settings,setSettings] = useState(defaults);
   const [status,setStatus] = useState('');
@@ -462,6 +464,7 @@ function NotificationSettings(){
       card_half_year_days:Math.max(1,Number(settings.card_half_year_days)||183),
       card_expiry_days:Math.max(1,Number(settings.card_expiry_days)||30),
       gift_expiry_days:Math.max(1,Number(settings.gift_expiry_days)||30),
+      card_inactivity_months:Math.min(24,Math.max(1,Math.trunc(Number(settings.card_inactivity_months)||2))),
       updated_at:new Date().toISOString()
     };
     const {error} = await supabase.from('notification_settings').upsert(payload);
@@ -478,6 +481,9 @@ function NotificationSettings(){
     <div className="notificationToggles">
       <label><input type="checkbox" checked={Boolean(settings.notify_card_purchase)} onChange={e=>setSettings({...settings,notify_card_purchase:e.target.checked})}/> שליחת מייל בעת חידוש או רכישת כרטיסייה</label>
       <label><input type="checkbox" checked={Boolean(settings.notify_gift_purchase)} onChange={e=>setSettings({...settings,notify_gift_purchase:e.target.checked})}/> שליחת מייל רכישה עבור שובר מתנה</label>
+      <label><input type="checkbox" checked={Boolean(settings.notify_card_inactivity)} onChange={e=>setSettings({...settings,notify_card_inactivity:e.target.checked})}/> תזכורת אוטומטית לאחר תקופה ללא טיפול</label>
+      <label>מספר חודשים מהטיפול האחרון<input type="number" min="1" max="24" step="1" disabled={!settings.notify_card_inactivity} value={settings.card_inactivity_months} onChange={e=>setSettings({...settings,card_inactivity_months:e.target.value})}/></label>
+      <p className="hint">תזכורת אחת לכל תקופה ללא טיפול, לפי גריעת הדקות האחרונה. נשלחת רק לכרטיסייה בתוקף עם יתרה וכתובת אימייל, וכוללת את יתרת הדקות וקישור לקביעת טיפול. חידוש כרטיסייה מתחיל את תקופת ההמתנה מחדש.</p>
       <label><input type="checkbox" checked={Boolean(settings.notify_card_transactions)} onChange={e=>setSettings({...settings,notify_card_transactions:e.target.checked})}/> שליחת מייל על כל טעינה או גריעת זמן בכרטיסייה</label>
     </div>
     <div className="actions"><Button onClick={save} variant="green"><Settings size={16}/> שמירת הגדרות</Button>{status && <small className="hint">{status}</small>}</div>
@@ -497,6 +503,13 @@ function Admin(){
   const [loading,setLoading]=useState(true);
   const [showNotifications,setShowNotifications]=useState(false);
   const [emailNotice,setEmailNotice]=useState('');
+  useEffect(()=>{
+    if(!isTransientCardNotice(emailNotice)) return;
+    const timer=setTimeout(()=>setEmailNotice(''),5000);
+    return ()=>clearTimeout(timer);
+  },[emailNotice]);
+  useEffect(()=>{setEmailNotice('')},[selectedId]);
+
 
   const selected=useMemo(
     ()=>[...clients, ...archivedClients].find(c=>c.id===selectedId) || null,
@@ -538,10 +551,7 @@ function Admin(){
   async function notify(event, payload){
     try{
       const result = await sendAdminNotification(session,event,payload);
-      if(result.status === 'sent') setEmailNotice('הודעת המייל נשלחה.');
-      else if(result.reason === 'missing_email') setEmailNotice('לא נשלחה הודעת מייל: לא הוגדרה כתובת אימייל.');
-      else if(result.reason === 'disabled') setEmailNotice('שליחת הודעות מסוג זה כבויה בהגדרות.');
-      else setEmailNotice('הודעה מסוג זה כבר נשלחה.');
+      setEmailNotice(cardNotificationNotice(result));
     }catch(error){
       setEmailNotice(error.message || 'לא ניתן לשלוח הודעת מייל כרגע.');
     }

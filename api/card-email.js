@@ -64,7 +64,9 @@ async function getSettings() {
     gift_expiry_days: 30,
     notify_card_purchase: true,
     notify_gift_purchase: true,
-    notify_card_transactions: false
+    notify_card_transactions: false,
+    notify_card_inactivity: false,
+    card_inactivity_months: 2
   };
 }
 
@@ -130,11 +132,12 @@ function cardMail(card, type, transaction) {
     purchase: ["כרטיסייה עודכנה", "הכרטיסייה שלך עודכנה", "כרטיסייה חדשה או חידוש נקלטו בהצלחה."],
     half_year: ["תזכורת לכרטיסייה", "נותרה חצי שנה לתוקף הכרטיסייה", "הכרטיסייה עדיין פעילה, ונשארה בה יותר ממחצית היתרה."],
     expiry: ["תזכורת לכרטיסייה", "הכרטיסייה עומדת לפוג בקרוב", "נשאר חודש או פחות עד לסיום תוקף הכרטיסייה."],
+    inactivity: ["תזכורת לכרטיסייה", "זמן לטיפול הבא שלך", "נשארה לך יתרה בכרטיסיית הטיפולים, ונשמח לראותך לטיפול נוסף."],
     transaction: ["עדכון כרטיסייה", "היתרה בכרטיסייה עודכנה", "בוצעה פעולה חדשה בכרטיסיית הטיפולים שלך."]
   };
   const [eyebrow, title, intro] = labels[type];
   const details = [
-    `יתרה זמינה: ${minutesToText(remaining)}`,
+    type === "inactivity" ? `יתרה זמינה: ${remaining} דקות (${minutesToText(remaining)})` : `יתרה זמינה: ${minutesToText(remaining)}`,
     `בתוקף עד: ${formatDate(card.expires_at)}`,
     transaction ? `פעולה: ${transaction.description || "עדכון כרטיסייה"}` : ""
   ];
